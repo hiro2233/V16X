@@ -121,4 +121,6 @@ docs/_build/
 
 # PyBuilder
 target/
-
+*.layout
+*.depend
+*.cscope_file_list
