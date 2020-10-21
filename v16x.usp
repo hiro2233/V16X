@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<UrusStudio_project_file>
+	<FileVersion major="1" minor="6" />
+	<Project>
+		<Option title="v16x" />
+		<Option execution_dir="/media/urus/SAMSUNG2/hiro/dev/V16X/app/" />
+		<Option pch_mode="2" />
+		<Option compiler="gcc" />
+		<Build>
+			<Target title="unix_debug">
+				<Option output="build/debug/v16x" prefix_auto="1" extension_auto="1" />
+				<Option working_dir="build/debug/" />
+				<Option object_output="build/.obj/debug/" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-g" />
+					<Add option="-D_UNIX_" />
+				</Compiler>
+			</Target>
+			<Target title="unix_release">
+				<Option output="build/release/v16x" prefix_auto="1" extension_auto="1" />
+				<Option working_dir="build/release/" />
+				<Option object_output="build/.obj/release/" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-O2" />
+					<Add option="-fdata-sections" />
+					<Add option="-ffunction-sections" />
+					<Add option="-fno-exceptions" />
+					<Add option="-fsigned-char" />
+					<Add option="-D_UNIX_" />
+				</Compiler>
+				<Linker>
+					<Add option="-s" />
+					<Add option="-Wl,--gc-sections" />
+				</Linker>
+			</Target>
+		</Build>
+		<Compiler>
+			<Add option="-Wall" />
+			<Add option="-std=c11" />
+			<Add option="-std=gnu++11" />
+			<Add option="-fpermissive" />
+			<Add option="-D__STDC_FORMAT_MACROS" />
+			<Add option="-DENABLE_SYSTEM_SHUTDOWN" />
+			<Add directory="libraries" />
+		</Compiler>
+		<Linker>
+			<Add option="-pthread" />
+		</Linker>
+		<Unit filename="app/main.cpp" />
+		<Unit filename="app/v16x_server.cpp" />
+		<Unit filename="app/v16x_server.h" />
+		<Unit filename="libraries/UR_V16X/UR_V16X.cpp" />
+		<Unit filename="libraries/UR_V16X/UR_V16X.h" />
+		<Unit filename="libraries/UR_V16X/UR_V16X_Driver.cpp" />
+		<Unit filename="libraries/UR_V16X/UR_V16X_Driver.h" />
+		<Unit filename="libraries/UR_V16X/UR_V16X_Posix.cpp" />
+		<Unit filename="libraries/UR_V16X/UR_V16X_Posix.h" />
+		<Unit filename="libraries/UR_V16X/system/system.cpp" />
+		<Unit filename="libraries/UR_V16X/system/system.h" />
+		<Unit filename="libraries/UR_V16X/utility/functor.h" />
+		<Extensions>
+			<envvars />
+			<code_completion />
+			<debugger />
+		</Extensions>
+	</Project>
+</UrusStudio_project_file>
