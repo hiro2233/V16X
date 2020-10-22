@@ -77,6 +77,7 @@ namespace SHAL_SYSTEM {
 #ifndef ENABLE_SYSTEM_SHUTDOWN
 void SHAL_SYSTEM::system_shutdown()
 {
+    sig_evt = 1;
 }
 #endif // ENABLE_SYSTEM_SHUTDOWN
 
@@ -309,4 +310,8 @@ void SHAL_SYSTEM::printf(const char *printmsg, ...)
     va_end(vl);
 }
 
+#ifndef __WXGTK__
 SHAL_SYSTEM_MAIN()
+#else
+SHAL_SYSTEM_WX_MAIN()
+#endif

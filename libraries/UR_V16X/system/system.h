@@ -41,6 +41,11 @@
 #include <UR_V16X/UR_V16X.h>
 #include <UR_V16X/utility/functor.h>
 
+typedef struct __system_argcv_s {
+    int argc;
+    char** argv;
+} system_argcv_t;
+
 #define NORETURN __attribute__ ((noreturn))
 #define FMT_PRINTF(a,b) __attribute__((format(printf, a, b)))
 
@@ -55,6 +60,24 @@
     extern "C" {                               \
     int SHAL_MAIN(int argc, char* const argv[]); \
     int SHAL_MAIN(int argc, char* const argv[]) { \
+        configure(); \
+        while (!sig_evt) { \
+            loop(); \
+        } \
+        return 0; \
+    } \
+    }
+
+#define SHAL_SYSTEM_WX_MAIN() \
+    void configure(); \
+    void loop(); \
+    volatile sig_atomic_t sig_evt = 0; \
+    system_argcv_t system_argcv; \
+    extern "C" {                               \
+    int SHAL_MAIN(int argc, char* const argv[]); \
+    int SHAL_MAIN(int argc, char* const argv[]) { \
+        system_argcv.argc = argc; \
+        system_argcv.argv = (char**)argv; \
         configure(); \
         while (!sig_evt) { \
             loop(); \
@@ -106,3 +129,4 @@ namespace SHAL_SYSTEM {
 } // namespace V16X
 
 extern volatile sig_atomic_t sig_evt;
+extern system_argcv_t system_argcv;
