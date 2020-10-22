@@ -8,18 +8,19 @@
 		<Option compiler="gcc" />
 		<Build>
 			<Target title="unix_debug">
-				<Option output="build/debug/v16x" prefix_auto="1" extension_auto="1" />
+				<Option output="$(WORKSPACEDIR)/build/debug/v16x" prefix_auto="1" extension_auto="1" />
 				<Option working_dir="" />
 				<Option object_output="build/.obj/debug/" />
 				<Option type="2" />
 				<Option compiler="gcc" />
 				<Compiler>
 					<Add option="-g" />
+					<Add option="`wx-config  --version=2.8 --static=no --unicode=yes --debug=no --cflags`" />
 					<Add option="-D_UNIX_" />
 				</Compiler>
 			</Target>
 			<Target title="unix_release">
-				<Option output="build/release/v16x" prefix_auto="1" extension_auto="1" />
+				<Option output="$(WORKSPACEDIR)/build/release/v16x" prefix_auto="1" extension_auto="1" />
 				<Option working_dir="" />
 				<Option object_output="build/.obj/release/" />
 				<Option type="2" />
@@ -30,6 +31,7 @@
 					<Add option="-ffunction-sections" />
 					<Add option="-fno-exceptions" />
 					<Add option="-fsigned-char" />
+					<Add option="`wx-config  --version=2.8 --static=no --unicode=yes --debug=no --cflags`" />
 					<Add option="-D_UNIX_" />
 				</Compiler>
 				<Linker>
@@ -43,6 +45,7 @@
 			<Add option="-std=c11" />
 			<Add option="-std=gnu++11" />
 			<Add option="-fpermissive" />
+			<Add option="-Wno-unused-local-typedefs" />
 			<Add option="-D__STDC_FORMAT_MACROS" />
 			<Add option="-DENABLE_SYSTEM_SHUTDOWN" />
 			<Add directory="libraries" />
@@ -50,6 +53,19 @@
 		<Linker>
 			<Add option="-pthread" />
 		</Linker>
+		<Unit filename="app/main.cpp">
+			<Option compile="0" />
+			<Option link="0" />
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
+		<Unit filename="app/v16x_server.cpp">
+			<Option compile="0" />
+			<Option link="0" />
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
+		<Unit filename="app/v16x_server.h">
+			<Option target="&lt;{~None~}&gt;" />
+		</Unit>
 		<Unit filename="libraries/UR_V16X/UR_V16X.cpp" />
 		<Unit filename="libraries/UR_V16X/UR_V16X.h" />
 		<Unit filename="libraries/UR_V16X/UR_V16X_Driver.cpp" />
