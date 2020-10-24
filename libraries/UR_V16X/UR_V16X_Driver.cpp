@@ -22,6 +22,11 @@
 UR_V16X_Driver::UR_V16X_Driver(UR_V16X &v16x) :
     _frontend(v16x)
 {
+    for (uint8_t j = 0; j < V16X_MAX_ENDPOINTS; j++) {
+        for (uint8_t i = 0; i < V16X_MAX_CLIENTS; i++) {
+            _frontend.endpoints[j].clients[i] = nullptr;
+        }
+    }
 }
 
 void UR_V16X_Driver::driver_update(uint8_t endpoint)
@@ -39,7 +44,7 @@ void UR_V16X_Driver::_copy_client_to_frontend(uint8_t endpoint, int client_id, b
     }
 
     for (uint8_t i = 0; i < V16X_MAX_CLIENTS; i++) {
-        if (_frontend.endpoints[endpoint].clients[i]) {
+        if (_frontend.endpoints[endpoint].clients[i] != nullptr) {
             if (_frontend.endpoints[endpoint].clients[i]->client_id == client_id) {
                 return;
             }
