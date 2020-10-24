@@ -126,6 +126,8 @@ namespace SHAL_SYSTEM {
     uint32_t millis32();
     uint64_t millis64();
 
+    extern bool _isr_timer_running;
+
 } // namespace V16X
 
 extern volatile sig_atomic_t sig_evt;

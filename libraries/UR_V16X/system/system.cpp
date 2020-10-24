@@ -61,7 +61,6 @@ namespace SHAL_SYSTEM {
     bool _in_timer_proc;
     volatile bool _timer_suspended;
     volatile bool _timer_event_missed;
-    bool _isr_timer_running;
 
     pthread_t run_proc_thread;
     pthread_attr_t thread_attr_run_proc;
@@ -73,6 +72,8 @@ namespace SHAL_SYSTEM {
         struct timeval start_time;
     } state_tv;
 } // namespace SHAL_SYSTEM
+
+bool SHAL_SYSTEM::_isr_timer_running = false;
 
 #ifndef ENABLE_SYSTEM_SHUTDOWN
 void SHAL_SYSTEM::system_shutdown()
@@ -280,6 +281,8 @@ void SHAL_SYSTEM::run_thread_process(UR_V16X &proc)
 
 void SHAL_SYSTEM::run_thread_process(Proc proc)
 {
+    //Proc *proctmp = new Proc;
+    //*proctmp = proc;
     pthread_create(&run_proc_thread, &thread_attr_run_proc, _fire_thread_void, (void*)proc);
 }
 
@@ -292,7 +295,7 @@ void SHAL_SYSTEM::run_thread_process(MemberProc proc)
 
 void SHAL_SYSTEM::delay_ms(uint16_t ms)
 {
-    usleep(ms);
+    usleep(ms * 1000);
 }
 
 void SHAL_SYSTEM::delay_sec(uint16_t sec)
