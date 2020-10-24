@@ -50,6 +50,12 @@ UR_V16X_Posix::UR_V16X_Posix(UR_V16X &v16x) :
 void UR_V16X_Posix::init(void)
 {
     SHAL_SYSTEM::printf("Init V16X endpoint: %d\n", _endpoint);
+    fflush(stdout);
+
+    for (int i = 0; i < V16X_MAX_CLIENTS; ++i) {
+        clients[i] = NULL;
+    }
+
     listenfd = open_listenfd(default_port);
     if (listenfd > 0) {
         printf("Listen on port %d, fd is %d\n\n\n", default_port, listenfd);
@@ -174,7 +180,7 @@ void UR_V16X_Posix::client_slot_add(netsocket_inf_t *cl)
 {
     pthread_mutex_lock(&clients_mutex);
     for (int i = 0; i < V16X_MAX_CLIENTS; ++i) {
-        if (!clients[i]) {
+        if (clients[i] == NULL) {
             clients[i] = cl;
             break;
         }
@@ -187,7 +193,7 @@ void UR_V16X_Posix::client_slot_delete(int clid)
 {
     pthread_mutex_lock(&clients_mutex);
     for (int i = 0; i < V16X_MAX_CLIENTS; ++i) {
-        if (clients[i]) {
+        if (clients[i] != NULL) {
             if (clients[i]->clid == clid) {
                 clients[i] = NULL;
                 break;
@@ -203,7 +209,7 @@ UR_V16X_Posix::netsocket_inf_t *UR_V16X_Posix::_get_next_unattached_client()
 
     pthread_mutex_lock(&clients_mutex);
     for (int i = 0; i < V16X_MAX_CLIENTS; ++i) {
-        if (clients[i]) {
+        if (clients[i] != NULL) {
             if (!clients[i]->is_attached) {
                 client = clients[i];
                 client->is_attached = true;
@@ -222,7 +228,7 @@ void UR_V16X_Posix::shuttdown()
     fflush(stdout);
     pthread_mutex_lock(&clients_mutex);
     for (int i = 0; i < V16X_MAX_CLIENTS; ++i) {
-        if (clients[i]) {
+        if (clients[i] != NULL) {
             if (clients[i]->is_attached) {
                 clients[i]->is_attached = false;
             }
@@ -246,7 +252,7 @@ void UR_V16X_Posix::fire_process()
 
     pthread_mutex_lock(&process_mutex);
     cli_count++;
-    _copy_client_to_frontend(_endpoint, netsocket_info->clid, netsocket_info->is_attached, cli_count);
+    _copy_client_to_frontend(_endpoint, netsocket_info->clid, netsocket_info->is_attached, (unsigned int)cli_count);
 
 #if V16X_DEBUG >= 1
     SHAL_SYSTEM::printf("FIRE_ISR: Start process ( CLID: %d )\n", netsocket_info->clid);
@@ -332,14 +338,14 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *clientaddr)
 
     memcpy(querytmp, query_string, strlen(query_string));
     if (!cgi_query) {
-//#if V16X_DEBUG >= 2
+#if V16X_DEBUG >= 2
         SHAL_SYSTEM::printf("\tREQ CGI: %s queryP: NONE Addr:%s:%d\n", filenametmp, inet_ntoa(clientaddr->sin_addr), ntohs(clientaddr->sin_port));
-//#endif // V16X_DEBUG
+#endif // V16X_DEBUG
     } else {
-//#if V16X_DEBUG >= 2
+#if V16X_DEBUG >= 2
         SHAL_SYSTEM::printf("\treq PARAM FILENAME: %s [queryP]: %s Addr:%s:%d\n", filenametmp, querytmp, inet_ntoa(clientaddr->sin_addr), ntohs(clientaddr->sin_port));
         //SHAL_SYSTEM::printf("\toffset: %d \n", (int)req.offset);
-//#endif // V16X_DEBUG
+#endif // V16X_DEBUG
 
         char msg[MAX_BUFF];
         if (strcmp(req.filename, "data") == 0) {
@@ -516,8 +522,8 @@ int UR_V16X_Posix::parse_request(int fd, http_request_t *req)
 
     int length = strlen(filename);
     if (length == 0) {
-        sprintf(req->filename, "%s", "index.html\0");
-        sprintf(filename, "%s", "index.html\0");
+        sprintf(req->filename, "%s", "index.html");
+        sprintf(filename, "%s", "index.html");
     }
 
     if (strlen(filename) > 0) {
