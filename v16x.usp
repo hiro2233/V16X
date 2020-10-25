@@ -37,6 +37,44 @@
 					<Add option="-Wl,--gc-sections" />
 				</Linker>
 			</Target>
+			<Target title="win32_debug">
+				<Option output="build/debug/v16x" prefix_auto="1" extension_auto="1" />
+				<Option working_dir="build/debug/" />
+				<Option object_output="build/.obj/debug/" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-g" />
+					<Add option="-D__WXMSW__" />
+					<Add option="-D_FILE_OFFSET_BITS=64" />
+					<Add option="-DwxDEBUG_LEVEL=0" />
+					<Add option="-DLOG4CPP_FIX_ERROR_COLLISION=1" />
+					<Add option="-DBOOST_ERROR_CODE_HEADER_ONLY" />
+				</Compiler>
+			</Target>
+			<Target title="win32_release">
+				<Option output="build/release/v16x" prefix_auto="1" extension_auto="1" />
+				<Option working_dir="build/release/" />
+				<Option object_output="build/.obj/release/" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-O2" />
+					<Add option="-fdata-sections" />
+					<Add option="-ffunction-sections" />
+					<Add option="-fno-exceptions" />
+					<Add option="-fsigned-char" />
+					<Add option="-D__WXMSW__" />
+					<Add option="-D_FILE_OFFSET_BITS=64" />
+					<Add option="-DwxDEBUG_LEVEL=0" />
+					<Add option="-DLOG4CPP_FIX_ERROR_COLLISION=1" />
+					<Add option="-DBOOST_ERROR_CODE_HEADER_ONLY" />
+				</Compiler>
+				<Linker>
+					<Add option="-s" />
+					<Add option="-Wl,--gc-sections" />
+				</Linker>
+			</Target>
 		</Build>
 		<Compiler>
 			<Add option="-Wall" />

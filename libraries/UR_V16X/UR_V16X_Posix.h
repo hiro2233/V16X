@@ -32,7 +32,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifndef __MSYS__
 #include <sys/sendfile.h>
+#endif // __MSYS__
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
@@ -42,21 +44,8 @@
 #include <atomic>
 #include <math.h>
 
-#ifdef WIN32
-    #include <winsock2.h>
-#else
-    #include <sys/socket.h>
-#endif
+#include <sys/socket.h>
 
-#ifndef SOL_TCP
-    #define SOL_TCP 6  // socket options TCP level
-#endif
-#ifndef TCP_USER_TIMEOUT
-    #define TCP_USER_TIMEOUT 18  // how long for loss retry before timeout [ms]
-#endif
-#ifndef TCP_KEEPIDLE
-#define TCP_KEEPIDLE TCP_KEEPALIVE
-#endif
 
 #define MAX_LISTEN  1024  /* max connections */
 #define MAX_BUFF 2048

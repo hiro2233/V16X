@@ -155,7 +155,9 @@ void SHAL_SYSTEM::panic(const char *errormsg, ...)
     va_end(ap);
     printf("\n");
 
-    for(;;);
+    for(;;) {
+        SHAL_SYSTEM::delay_sec(1);
+    }
 }
 
 void *SHAL_SYSTEM::_fire_isr_timer(void *arg)
@@ -313,7 +315,7 @@ void SHAL_SYSTEM::printf(const char *printmsg, ...)
     va_end(vl);
 }
 
-#ifndef __WXGTK__
+#if !defined(__WXGTK__) && !defined(__WXMSW__)
 SHAL_SYSTEM_MAIN()
 #else
 SHAL_SYSTEM_WX_MAIN()

@@ -18,6 +18,24 @@
 
 #include "UR_V16X_Posix.h"
 
+#ifndef SOL_TCP
+    #define SOL_TCP 6  // socket options TCP level
+#endif
+#ifndef TCP_USER_TIMEOUT
+    #define TCP_USER_TIMEOUT 18  // how long for loss retry before timeout [ms]
+#endif
+#ifndef TCP_KEEPCNT
+    #define TCP_KEEPCNT 8
+#endif
+
+#ifndef TCP_KEEPINTVL
+    #define TCP_KEEPINTVL 150
+#endif
+
+#ifndef TCP_KEEPIDLE
+    #define TCP_KEEPIDLE 14400
+#endif
+
 const UR_V16X_Posix::mime_map_t UR_V16X_Posix::mime_types[] = {
     {".css", "text/css;charset=UTF-8"},
     {".gif", "image/gif"},
@@ -52,13 +70,15 @@ void UR_V16X_Posix::init(void)
     SHAL_SYSTEM::printf("Init V16X endpoint: %d\n", _endpoint);
     fflush(stdout);
 
+    cli_count = 0;
     for (int i = 0; i < V16X_MAX_CLIENTS; ++i) {
         clients[i] = NULL;
     }
 
     listenfd = open_listenfd(default_port);
     if (listenfd > 0) {
-        printf("Listen on port %d, fd is %d\n\n\n", default_port, listenfd);
+        SHAL_SYSTEM::printf("Listen on port %d, fd is %d\n\n\n", default_port, listenfd);
+        fflush(stdout);
     } else {
         perror("ERROR");
         exit(listenfd);
@@ -73,7 +93,7 @@ void UR_V16X_Posix::update(void)
         }
 
         socklen_t clientlen = sizeof(clientaddr);
-        SHAL_SYSTEM::printf("Waiting connection for client #%d\n\n", cli_count + 1);
+        SHAL_SYSTEM::printf("Waiting connection for client #%d\n\n", (unsigned int)cli_count + 1);
         fflush(stdout);
 
         connfd = accept(listenfd, (SA *)&clientaddr, &clientlen);
@@ -123,7 +143,7 @@ void UR_V16X_Posix::update(void)
 
         client_slot_add(netsocket_info);
 
-        SHAL_SYSTEM::printf("Connected client ( CLID: %d ) Address:  %s:%d\n\n", netsocket_info->clid, inet_ntoa(netsocket_info->clientaddr.sin_addr), ntohs(netsocket_info->clientaddr.sin_port));
+        SHAL_SYSTEM::printf("Connected client ( CLID: %d ) Address:  %s : %d\n\n", netsocket_info->clid, inet_ntoa(netsocket_info->clientaddr.sin_addr), ntohs(netsocket_info->clientaddr.sin_port));
         fflush(stdout);
     }
 }
@@ -267,7 +287,7 @@ void UR_V16X_Posix::fire_process()
         }
     }
 
-    SHAL_SYSTEM::printf("Closed connection ( CLID: %d ) Address: %s:%d\n\n", netsocket_info->clid, inet_ntoa(netsocket_info->clientaddr.sin_addr), ntohs(netsocket_info->clientaddr.sin_port));
+    SHAL_SYSTEM::printf("Closed connection ( CLID: %d ) Address: %s : %d\n\n", netsocket_info->clid, inet_ntoa(netsocket_info->clientaddr.sin_addr), ntohs(netsocket_info->clientaddr.sin_port));
     fflush(stdout);
 
     close(netsocket_info->connfd);
@@ -275,7 +295,7 @@ void UR_V16X_Posix::fire_process()
     client_slot_delete(netsocket_info->clid);
     pthread_mutex_lock(&process_mutex);
     cli_count--;
-    _delete_client_from_frontend(_endpoint, netsocket_info->clid, cli_count);
+    _delete_client_from_frontend(_endpoint, netsocket_info->clid, (unsigned int)cli_count);
     pthread_mutex_unlock(&process_mutex);
     free(netsocket_info);
 }
@@ -460,7 +480,7 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *clientaddr)
                         char qmsg[MAX_BUFF];
                         sprintf(qmsg, "KEY DATA: [ %s ]%-5.s\t- VAL: [ %s ]", params3[i].key, "", params3[i].val);
 #if V16X_DEBUG >= 3
-                        SHAL_SYSTEM::SHAL_SYSTEM::printf("\tSTORED DATA msg ********** %s\n", qmsg);
+                        SHAL_SYSTEM::printf("\tSTORED DATA msg ********** %s\n", qmsg);
 #endif
                     }
                 }
@@ -654,17 +674,25 @@ void UR_V16X_Posix::serve_static(int out_fd, int in_fd, struct sockaddr_in *c_ad
     //}
 
     SHAL_SYSTEM::printf("\tServing static #1 fd:%d offset: %d offsettmp: %d end: %d - %s Addr:%s:%d\n", in_fd, (int)offset, (int)offsettmp, (int)end, filetmp, inet_ntoa(c_addr->sin_addr), ntohs(c_addr->sin_port));
-    //fflush(stdout);
+    fflush(stdout);
+#ifdef __MSYS__
+    char buftmp[end - offsettmp];
+#endif
 
     while(offset < end) {
+#ifdef __MSYS__
+        read(in_fd, buftmp, end - offsettmp);
+        offset = write(out_fd, buftmp, end - offsettmp);
+#else
         if(sendfile(out_fd, in_fd, &offset, end - offsettmp) <= 0) {
             break;
         }
+#endif // __MSYS__
         //offsettmp = offset;
         //filetmp[strlen(req->filename)] = '\0';
 //#if V16X_DEBUG >= 1
         SHAL_SYSTEM::printf("\tServing static #2 fd:%d offset: %d end: %d - %s Addr:%s:%d\n", in_fd, (int)offset, (int)end, filetmp, inet_ntoa(c_addr->sin_addr), ntohs(c_addr->sin_port));
-        //fflush(stdout);
+        fflush(stdout);
 //#endif // V16X_DEBUG
         break;
     }

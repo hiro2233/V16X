@@ -57,7 +57,7 @@ bool UR_V16X::_add_driver(UR_V16X_Driver *driver)
  */
 void UR_V16X::init(void)
 {
-#ifdef _UNIX_
+#if defined(_UNIX_) || defined(__MSYS__)
     ADD_DRIVER(UR_V16X_Posix::create_endpoint(*this));
 #endif
 
