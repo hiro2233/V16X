@@ -216,6 +216,7 @@ void UR_V16X_Posix::client_slot_delete(int clid)
         if (clients[i] != NULL) {
             if (clients[i]->clid == clid) {
                 clients[i] = NULL;
+                free(clients[i]);
                 break;
             }
         }
@@ -251,11 +252,13 @@ void UR_V16X_Posix::shuttdown()
         if (clients[i] != NULL) {
             if (clients[i]->is_attached) {
                 clients[i]->is_attached = false;
+                close(clients[i]->connfd);
             }
         }
     }
-    shutdown(listenfd, SHUT_RDWR);
+    close(listenfd);
     pthread_mutex_unlock(&clients_mutex);
+    sig_evt = 1;
     SHAL_SYSTEM::printf("Shutdown OK V16X posix endpoint: %d\n", _endpoint);
     fflush(stdout);
 }
@@ -690,10 +693,10 @@ void UR_V16X_Posix::serve_static(int out_fd, int in_fd, struct sockaddr_in *c_ad
 #endif // __MSYS__
         //offsettmp = offset;
         //filetmp[strlen(req->filename)] = '\0';
-//#if V16X_DEBUG >= 1
+#if V16X_DEBUG >= 1
         SHAL_SYSTEM::printf("\tServing static #2 fd:%d offset: %d end: %d - %s Addr:%s:%d\n", in_fd, (int)offset, (int)end, filetmp, inet_ntoa(c_addr->sin_addr), ntohs(c_addr->sin_port));
         fflush(stdout);
-//#endif // V16X_DEBUG
+#endif // V16X_DEBUG
         break;
     }
 }
