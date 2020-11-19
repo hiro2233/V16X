@@ -88,6 +88,8 @@ public:
         int clid;
         bool is_attached;
         int sending;
+        bool event_stream;
+        bool evtstr_connected;
     } netsocket_inf_t;
 
     UR_V16X_Posix(UR_V16X &v16x);
@@ -97,6 +99,7 @@ public:
     void fire_process();
     void shuttdown();
     int process(int fd, struct sockaddr_in *clientaddr);
+    void process_event_stream();
 
 private:
     uint8_t _endpoint;
@@ -132,7 +135,7 @@ private:
     void client_slot_delete(int clid);
     static bool poll_in(int fd, uint32_t timeout_ms);
     int parse_request(int fd, http_request_t *req);
-    int parse_query(char *query, char delimiter, query_param_t *params, int max_params);
+    int parse_query(char *query, char delimiter, char setter, query_param_t *params, int max_params);
     void handle_message_outhttp(int fd, char *longmsg);
     void log_access(int status, struct sockaddr_in *c_addr, http_request_t *req);
     void client_error(int fd, int status, const char *msg, const char *longmsg);
@@ -145,4 +148,7 @@ private:
     const char* get_mime_type(char *filename);
     void format_size(char* buf, struct stat *stat, int *filecnt, int *dircnt);
     netsocket_inf_t *_get_next_unattached_client();
+    void _set_client_event_stream(int fd, bool event_stream);
+    bool _has_client_event_stream(int fd);
+    netsocket_inf_t *_get_client(int fd);
 };

@@ -83,6 +83,8 @@ void UR_V16X_Posix::init(void)
         perror("ERROR");
         exit(listenfd);
     }
+
+    SHAL_SYSTEM::register_timer_process(FUNCTOR_BIND_MEMBER(&UR_V16X_Posix::process_event_stream, void));
 }
 
 void UR_V16X_Posix::update(void)
@@ -135,11 +137,14 @@ void UR_V16X_Posix::update(void)
         }
 
         netsocket_inf_t *netsocket_info = (netsocket_inf_t *)malloc(sizeof(netsocket_inf_t));
+        memset(netsocket_info, 0, sizeof(netsocket_inf_t));
 
         netsocket_info->clientaddr = clientaddr;
         netsocket_info->connfd = connfd;
         netsocket_info->clid = clid++;
         netsocket_info->is_attached = false;
+        netsocket_info->evtstr_connected = false;
+        netsocket_info->event_stream = false;
 
         client_slot_add(netsocket_info);
 
@@ -328,7 +333,9 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *clientaddr)
     int cgi_query = 0;
     char *query_string = nullptr;
 
-    memset(req.filename, '\0', sizeof(req.filename));
+    memset(&req, 0, sizeof(http_request_t));
+    memset(&querytmp, 0, sizeof(querytmp));
+    memset(&filenametmp, 0, sizeof(filenametmp));
 #if V16X_DEBUG >= 3
     SHAL_SYSTEM::printf("parse init...\n");
     fflush(stdout);
@@ -341,7 +348,7 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *clientaddr)
 
     memcpy(filenametmp, req.filename, sizeof(req.filename));
 #if V16X_DEBUG >= 3
-    SHAL_SYSTEM::printf("\tINIT FILENAME %s\n", filenametmp);
+    SHAL_SYSTEM::printf("\tINIT FILENAME: %s BEFORE req.filename: %s\n", filenametmp, req.filename);
 #endif // V16X_DEBUG
     query_string = req.filename;
 
@@ -362,11 +369,11 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *clientaddr)
     memcpy(querytmp, query_string, strlen(query_string));
     if (!cgi_query) {
 #if V16X_DEBUG >= 2
-        SHAL_SYSTEM::printf("\tREQ CGI: %s queryP: NONE Addr:%s:%d\n", filenametmp, inet_ntoa(clientaddr->sin_addr), ntohs(clientaddr->sin_port));
+        SHAL_SYSTEM::printf("\treq.filename: %s REQ CGI: %s queryP: NONE Addr:%s:%d\n", req.filename, filenametmp, inet_ntoa(clientaddr->sin_addr), ntohs(clientaddr->sin_port));
 #endif // V16X_DEBUG
     } else {
 #if V16X_DEBUG >= 2
-        SHAL_SYSTEM::printf("\treq PARAM FILENAME: %s [queryP]: %s Addr:%s:%d\n", filenametmp, querytmp, inet_ntoa(clientaddr->sin_addr), ntohs(clientaddr->sin_port));
+        SHAL_SYSTEM::printf("\treq.filename: %s req PARAM FILENAME: %s [queryP]: %s Addr:%s:%d\n", req.filename, filenametmp, querytmp, inet_ntoa(clientaddr->sin_addr), ntohs(clientaddr->sin_port));
         //SHAL_SYSTEM::printf("\toffset: %d \n", (int)req.offset);
 #endif // V16X_DEBUG
 
@@ -380,7 +387,7 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *clientaddr)
 
             if (lenquery1 > 0) {
                 memcpy(query_temp1, query_string, lenquery1 + 1);
-                ret1 = parse_query(query_temp1,'&', params1, 10);
+                ret1 = parse_query(query_temp1,'&', '=', params1, 10);
             }
 
             if (ret1 > 0) {
@@ -406,7 +413,7 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *clientaddr)
 
             if (lenquery2 > 0) {
                 memcpy(query_temp2, data_parsed.data, lenquery2 + 1);
-                ret2 = parse_query(query_temp2,'&', params2, 10);
+                ret2 = parse_query(query_temp2,'&', '=', params2, 10);
             }
 
             if (ret2 > 0) {
@@ -431,7 +438,9 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *clientaddr)
 #endif // V16X_DEBUG
                 handle_message_outhttp(fd, msg);
             } else {
-                sprintf(msg, "DATA_URL=%lu&%s", req.allsize + strlen(msg), "OK=0");
+                //sprintf(msg, "DATA_URL=%lu&%s", req.allsize + strlen(msg), "OK=0");
+                //sprintf(msg, "retry:200\ndata:{\"len\":%lu,\"dat\":\"%s\"}\n\n", req.allsize + strlen(msg), "OK=0");
+                sprintf(msg, "{\"len\":%lu,\"dat\":\"%s\"}", req.allsize + strlen(msg), "OK");
 #if V16X_DEBUG >= 3
                 SHAL_SYSTEM::printf("DATA_URL CMP FALSE getlen: %lu - msg: %s\n", req.end, msg);
 #endif // V16X_DEBUG
@@ -475,7 +484,7 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *clientaddr)
                 char query_temp3[lenquery3 + 1];
                 if (lenquery3 > 0) {
                     memcpy(query_temp3, query_string, lenquery3 + 1);
-                    ret3 = parse_query(query_temp3,'&', params3, 10);
+                    ret3 = parse_query(query_temp3,'&', '=', params3, 10);
                 }
 
                 if (ret3 > 0) {
@@ -535,6 +544,25 @@ int UR_V16X_Posix::parse_request(int fd, http_request_t *req)
     io_data_init(&dat_io, fd);
     io_data_read(&dat_io, buf, MAX_BUFF, &closed);
 
+    query_param_t split_params[15];
+    int ret_params = parse_query(buf, '\n', 0, split_params, 15);
+
+    for (uint8_t i = 1; i < ret_params; i++) {
+        if (strlen(split_params[i].key)  < 2) {
+            continue;
+        }
+
+        if (strstr(split_params[i].key, "event-stream")) {
+            _set_client_event_stream(fd, true);
+#if V16X_DEBUG >= 1
+            SHAL_SYSTEM::printf("\n++++++++Event stream parsed!++++++++\n\n");
+#endif // V16X_DEBUG
+            break;
+        } else {
+            _set_client_event_stream(fd, false);
+        }
+    }
+
     sscanf(buf, "%s %s", method, uri);
 
     req->allsize = dat_io.io_cnt;
@@ -550,13 +578,18 @@ int UR_V16X_Posix::parse_request(int fd, http_request_t *req)
     }
 
     if (strlen(filename) > 0) {
+        SHAL_SYSTEM::printf("URL filename: %s\n", filename);
+        if (filename[0] == '?') {
+            sprintf(req->filename, "%s", "index.html");
+            sprintf(filename, "%s", "index.html");
+        }
         url_decode(filename, req->filename, strlen(filename) + 1);
     }
 
     return closed;
 }
 
-int UR_V16X_Posix::parse_query(char *query, char delimiter, query_param_t *params, int max_params)
+int UR_V16X_Posix::parse_query(char *query, char delimiter, char setter, query_param_t *params, int max_params)
 {
 	int i = 0;
 
@@ -571,8 +604,8 @@ int UR_V16X_Posix::parse_query(char *query, char delimiter, query_param_t *param
 		params[i].val = NULL;
 
 		/* Go back and split previous param */
-		if (i > 0) {
-			if ((params[i - 1].val = strchr(params[i - 1].key, '=')) != NULL) {
+		if (i > 0 && setter != 0) {
+			if ((params[i - 1].val = strchr(params[i - 1].key, setter)) != NULL) {
 				*(params[i - 1].val)++ = '\0';
                 char * pchar;
                 pchar = strtok(params[i-1].val," ");
@@ -585,9 +618,11 @@ int UR_V16X_Posix::parse_query(char *query, char delimiter, query_param_t *param
 		i++;
 	}
 
-	/* Go back and split last param */
-	if ((params[i - 1].val = strchr(params[i - 1].key, '=')) != NULL) {
-		*(params[i - 1].val)++ = '\0';
+	if (setter != 0) {
+        /* Go back and split last param */
+        if ((params[i - 1].val = strchr(params[i - 1].key, setter)) != NULL) {
+            *(params[i - 1].val)++ = '\0';
+        }
 	}
 
 	return i;
@@ -598,13 +633,15 @@ void UR_V16X_Posix::handle_message_outhttp(int fd, char *longmsg)
     char buf[MAX_BUFF];
     memset(buf, '\0', MAX_BUFF);
 
-    sprintf(buf, "HTTP/1.1 %d %s\r\n", 200, "OK");
-    sprintf(buf + strlen(buf), "Server:%s\r\n", SERVER_VERSION);
-    sprintf(buf + strlen(buf), "%s", "Content-Type:text/plain;charset=UTF-8\r\n");
-    //sprintf(buf + strlen(buf), "Connection:%s\r\n", "close");
-    sprintf(buf + strlen(buf), "Content-length:%lu\r\n\r\n", strlen(longmsg));
-    sprintf(buf + strlen(buf), "%s", longmsg);
-    writen(fd, buf, strlen(buf));
+    if (!_has_client_event_stream(fd)) {
+        sprintf(buf, "HTTP/1.1 %d %s\r\n", 200, "OK");
+        sprintf(buf + strlen(buf), "Server:%s\r\n", SERVER_VERSION);
+        //sprintf(buf + strlen(buf), "Connection:%s\r\n", "close");
+        sprintf(buf + strlen(buf), "%s", "Content-Type:text/plain;charset=UTF-8\r\n");
+        sprintf(buf + strlen(buf), "Content-length:%lu\r\n\r\n", strlen(longmsg));
+        sprintf(buf + strlen(buf), "%s", longmsg);
+        writen(fd, buf, strlen(buf));
+    }
 }
 
 void UR_V16X_Posix::log_access(int status, struct sockaddr_in *c_addr, http_request_t *req)
@@ -703,11 +740,14 @@ void UR_V16X_Posix::serve_static(int out_fd, int in_fd, struct sockaddr_in *c_ad
 
 void UR_V16X_Posix::handle_directory_request(int out_fd, int dir_fd, char *filename)
 {
-    char bufdir[MAX_BUFF], m_time[32], size[16];
-    char longmsg[MAX_BUFF * 2];
+    const uint64_t max_buff = MAX_BUFF * 4;
+    char bufdir[max_buff];
+    char m_time[32];
+    char size[16];
+    char longmsg[max_buff];
     struct stat statbuf;
 
-    memset(longmsg, '\0', MAX_BUFF * 2);
+    memset(longmsg, '\0', max_buff);
     sprintf(longmsg, "%s", "<html><head><meta charset=\"UTF-8\"/><style>");
     sprintf(longmsg + strlen(longmsg), "%s", "body{font-family:monospace;font-size:13px;}");
     sprintf(longmsg + strlen(longmsg), "%s", "td {padding: 1.5px 6px;}");
@@ -720,6 +760,10 @@ void UR_V16X_Posix::handle_directory_request(int out_fd, int dir_fd, char *filen
     int dircnt = 0;
 
     while((dp = readdir(d)) != NULL) {
+        if (strlen(longmsg) >= ((max_buff) - 256)) {
+            break;
+        }
+
         if (!strcmp(dp->d_name, ".") || !strcmp(dp->d_name, "..")) {
             continue;
         }
@@ -745,12 +789,13 @@ void UR_V16X_Posix::handle_directory_request(int out_fd, int dir_fd, char *filen
                 filecnt = filecnt - 1;
             }
         }
+
         close(ffd);
     }
 
     sprintf(longmsg + strlen(longmsg), "<td><br>Total items: %d Files: %d Dirs: %d</br></td></table><hr><center>%s</center></body></html>", filecnt + dircnt, filecnt, dircnt, SERVER_VERSION);
 
-    memset(bufdir, '\0', MAX_BUFF);
+    memset(bufdir, '\0', max_buff);
     sprintf(bufdir, "HTTP/1.1 %d %s\r\n", 200, "OK");
     sprintf(bufdir + strlen(bufdir), "Server:%s\r\n", SERVER_VERSION);
     sprintf(bufdir + strlen(bufdir), "%s", "Content-Type:text/html;charset=UTF-8\r\n");
@@ -863,4 +908,84 @@ void UR_V16X_Posix::format_size(char* buf, struct stat *stat, int *filecnt, int 
             sprintf(buf, "%.1fG", (double)size / 1024 / 1024 / 1024);
         }
     }
+}
+
+void UR_V16X_Posix::process_event_stream()
+{
+    char msg[MAX_BUFF];
+    char buf[MAX_BUFF];
+
+    static uint32_t last = SHAL_SYSTEM::millis32();
+    uint32_t now = SHAL_SYSTEM::millis32();
+
+    if ((now - last) < 5000) {
+        return;
+    }
+
+    last = SHAL_SYSTEM::millis32();
+
+    sprintf(buf, "HTTP/1.1 %d %s\r\n", 200, "OK");
+    sprintf(buf + strlen(buf), "Server:%s\r\n", SERVER_VERSION);
+    //sprintf(buf + strlen(buf), "Access-Control-Allow-Origin:*\r\n");
+    sprintf(buf + strlen(buf), "Connection:%s\r\n","keep-alive");
+    sprintf(buf + strlen(buf), "Cache-Control:no-cache\r\n");
+    sprintf(buf + strlen(buf), "%s", "Content-Type:text/event-stream\r\n");
+
+    for (uint16_t i = 0; i < V16X_MAX_CLIENTS; ++i) {
+        if (clients[i] != NULL) {
+            if (clients[i]->event_stream) {
+                SHAL_SYSTEM::printf("id: %d clid: %d\n", i, clients[i]->clid);
+                SHAL_SYSTEM::printf("EvtStr ( CLID: %d ) Address:  %s : %d\n\n", clients[i]->clid, inet_ntoa(clients[i]->clientaddr.sin_addr), ntohs(clients[i]->clientaddr.sin_port));
+
+                sprintf(msg, "retry:500\nid:100\ndata:{\"len\":%lu,\"dat\":\"%s\"}\n\n", sizeof(msg), "OK=0");
+                sprintf(buf + strlen(buf), "Content-length:%lu\r\n\r\n", strlen(msg));
+                sprintf(buf + strlen(buf), "%s", msg);
+
+                writen(clients[i]->connfd, buf, strlen(buf));
+            }
+        }
+    }
+}
+
+void UR_V16X_Posix::_set_client_event_stream(int fd, bool event_stream)
+{
+    for (uint16_t i = 0; i < V16X_MAX_CLIENTS; ++i) {
+        if (clients[i] != NULL) {
+            if (clients[i]->connfd == fd) {
+                clients[i]->event_stream = event_stream;
+            }
+        }
+    }
+}
+
+bool UR_V16X_Posix::_has_client_event_stream(int fd)
+{
+    bool evtstr = false;
+
+    for (uint16_t i = 0; i < V16X_MAX_CLIENTS; ++i) {
+        if (clients[i] != NULL) {
+            if (clients[i]->connfd == fd) {
+                evtstr = clients[i]->event_stream;
+                break;
+            }
+        }
+    }
+
+    return evtstr;
+}
+
+UR_V16X_Posix::netsocket_inf_t *UR_V16X_Posix::_get_client(int fd)
+{
+    netsocket_inf_t * clientinf = NULL;
+
+    for (uint16_t i = 0; i < V16X_MAX_CLIENTS; ++i) {
+        if (clients[i] != NULL) {
+            if (clients[i]->connfd == fd) {
+                clientinf = clients[i];
+                break;
+            }
+        }
+    }
+
+    return clientinf;
 }

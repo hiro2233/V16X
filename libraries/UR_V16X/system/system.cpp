@@ -162,16 +162,20 @@ void SHAL_SYSTEM::panic(const char *errormsg, ...)
 
 void *SHAL_SYSTEM::_fire_isr_timer(void *arg)
 {
-
     if (_isr_timer_running) {
         return NULL;
     }
 
     _isr_timer_running = true;
 
+    uint32_t last = millis32();
     while(_isr_timer_running) {
-        sleep(1);
-        _timer_event();
+        uint32_t now = millis32();
+        if ((now - last) >= 20) {
+            last = millis32();
+            _timer_event();
+        }
+        usleep(1000);
     }
 
     _isr_timer_running = false;
