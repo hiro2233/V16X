@@ -90,7 +90,7 @@ private:
         bool ttl_ok:1;
         int client_id;
         const char *address;
-        const char *port;
+        uint16_t port;
     } clients_t;
 
     // endpoint driver stored data record slots.

@@ -46,13 +46,41 @@
 
 #include <sys/socket.h>
 
+#include <openssl/evp.h>
+#include <openssl/err.h>
+#include <openssl/ssl.h>
+#include <openssl/bio.h> /* base64 encode/decode */
+#include <openssl/md5.h> /* md5 hash */
+#include <openssl/sha.h> /* sha1 hash */
 
-#define MAX_LISTEN  1024  /* max connections */
+#define MAX_LISTEN  1000  /* max connections */
 #define MAX_BUFF 2048
+#define PROCESS_EVENT_INTERVAL 2000 // Time in ms
+#define UPDATE_POLLIN_INTERVAL 40 // Time in ms
+#define FIREPROC_POLLIN_INTERVAL 20 // Time in ms
+#define OPCODE_TEXT    0x01
+#define OPCODE_BINARY  0x02
+#define TIMEOUT_FIREPROC   300 // Time in ms
 
 class UR_V16X_Posix : public UR_V16X_Driver
 {
 public:
+
+    typedef struct __events_transaction_t {
+        int fd;
+        bool event_stream;
+        bool event_websocket;
+        bool method_get;
+    } events_transaction_t;
+
+    enum TYPE_TRANSACTION_E {
+        SET_EVENT_STREAM,
+        GET_EVENT_STREAM,
+        SET_CLIENT_METHOD_GET,
+        GET_CLIENT_METHOD_GET,
+        SET_EVENT_WEBSOCKET,
+        GET_EVENT_WEBSOCKET
+    };
 
     typedef struct {
         int io_fd;
@@ -90,6 +118,11 @@ public:
         int sending;
         bool event_stream;
         bool evtstr_connected;
+        bool evtstr_ping;
+        uint32_t alive_cnt;
+        bool event_websocket;
+        bool evtwebsock_ping;
+        bool method_get;
     } netsocket_inf_t;
 
     UR_V16X_Posix(UR_V16X &v16x);
@@ -103,18 +136,11 @@ public:
 
 private:
     uint8_t _endpoint;
-
-    struct sockaddr_in clientaddr;
-
     int default_port = 9998;
     int listenfd;
-    int connfd;
 
     pthread_mutex_t clients_mutex = PTHREAD_MUTEX_INITIALIZER;
     pthread_mutex_t process_mutex = PTHREAD_MUTEX_INITIALIZER;
-
-    pthread_t _proc_thread;
-    pthread_attr_t _thread_attr_proc;
 
     netsocket_inf_t *clients[V16X_MAX_CLIENTS];
 
@@ -133,14 +159,14 @@ private:
     // add client to slot.
     void client_slot_add(netsocket_inf_t *cl);
     void client_slot_delete(int clid);
-    static bool poll_in(int fd, uint32_t timeout_ms);
+    bool poll_in(int fd, uint32_t timeout_ms);
     int parse_request(int fd, http_request_t *req);
     int parse_query(char *query, char delimiter, char setter, query_param_t *params, int max_params);
     void handle_message_outhttp(int fd, char *longmsg);
     void log_access(int status, struct sockaddr_in *c_addr, http_request_t *req);
     void client_error(int fd, int status, const char *msg, const char *longmsg);
     void serve_static(int out_fd, int in_fd, struct sockaddr_in *c_addr, http_request_t *req, size_t total_size);
-    void handle_directory_request(int out_fd, int dir_fd, char *filename);
+    void handle_directory_request(int out_fd, int dir_fd, char filename[]);
     ssize_t io_data_read(data_io_t *rp, char *usrbuf, size_t maxlen, int *closed);
     void io_data_init(data_io_t *rp, int fd);
     void url_decode(char* src, char* dest, int max);
@@ -151,4 +177,13 @@ private:
     void _set_client_event_stream(int fd, bool event_stream);
     bool _has_client_event_stream(int fd);
     netsocket_inf_t *_get_client(int fd);
+    void _client_transaction(TYPE_TRANSACTION_E typetr, events_transaction_t &data_transaction);
+    void _set_client_event_websocket(int fd, bool event_websocket);
+    bool _has_client_event_websocket(int fd);
+    bool _has_client_events(int fd);
+    bool _has_client_same_ip(sockaddr_in cliaddr);
+    void _set_client_method_get(int fd, bool method);
+    bool _has_client_method_get(int fd);
+    bool _has_ip_method_get(sockaddr_in cliaddr);
+    void _get_client(TYPE_TRANSACTION_E typetr, netsocket_inf_t &client);
 };

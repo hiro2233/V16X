@@ -23,7 +23,7 @@ UR_V16X_Driver::UR_V16X_Driver(UR_V16X &v16x) :
     _frontend(v16x)
 {
     for (uint8_t j = 0; j < V16X_MAX_ENDPOINTS; j++) {
-        for (uint8_t i = 0; i < V16X_MAX_CLIENTS; i++) {
+        for (uint16_t i = 0; i < V16X_MAX_CLIENTS; i++) {
             _frontend.endpoints[j].clients[i] = nullptr;
         }
     }
@@ -37,13 +37,13 @@ void UR_V16X_Driver::driver_update(uint8_t endpoint)
 /*
   copy latest data to the manager from a driver
  */
-void UR_V16X_Driver::_copy_client_to_frontend(uint8_t endpoint, int client_id, bool attached, unsigned int client_cnt)
+void UR_V16X_Driver::_copy_client_to_frontend(uint8_t endpoint, int client_id, bool attached, unsigned int client_cnt, const char *address, uint16_t port)
 {
     if (endpoint >= _frontend._num_endpoints) {
         return;
     }
 
-    for (uint8_t i = 0; i < V16X_MAX_CLIENTS; i++) {
+    for (uint16_t i = 0; i < V16X_MAX_CLIENTS; i++) {
         if (_frontend.endpoints[endpoint].clients[i] != nullptr) {
             if (_frontend.endpoints[endpoint].clients[i]->client_id == client_id) {
                 return;
@@ -51,13 +51,13 @@ void UR_V16X_Driver::_copy_client_to_frontend(uint8_t endpoint, int client_id, b
         }
     }
 
-    for (uint8_t i = 0; i < V16X_MAX_CLIENTS; i++) {
+    for (uint16_t i = 0; i < V16X_MAX_CLIENTS; i++) {
         if (_frontend.endpoints[endpoint].clients[i] == nullptr) {
             _frontend.endpoints[endpoint].clients[i] = new UR_V16X::clients_t;
             _frontend.endpoints[endpoint].clients[i]->client_id = client_id;
             _frontend.endpoints[endpoint].clients[i]->attached = attached;
-            const char address[] = "none";
             _frontend.endpoints[endpoint].clients[i]->address = address;
+            _frontend.endpoints[endpoint].clients[i]->port = port;
             _frontend.endpoints[endpoint].client_cnt = client_cnt;
             break;
         }
@@ -71,7 +71,7 @@ void UR_V16X_Driver::_copy_client_to_frontend(uint8_t endpoint, int client_id, b
 
 void UR_V16X_Driver::_delete_client_from_frontend(uint8_t endpoint, int client_id, unsigned int client_cnt)
 {
-    for (uint8_t i = 0; i < V16X_MAX_CLIENTS; i++) {
+    for (uint16_t i = 0; i < V16X_MAX_CLIENTS; i++) {
         if (_frontend.endpoints[endpoint].clients[i]) {
             if (_frontend.endpoints[endpoint].clients[i]->client_id == client_id) {
                 delete _frontend.endpoints[endpoint].clients[i];
@@ -80,11 +80,12 @@ void UR_V16X_Driver::_delete_client_from_frontend(uint8_t endpoint, int client_i
                 SHAL_SYSTEM::printf("*****REMOVE Client ID: %d pos %d\n", client_id, i);
                 fflush(stdout);
 #endif
-                _frontend.endpoints[endpoint].client_cnt = client_cnt;
+                //_frontend.endpoints[endpoint].client_cnt = client_cnt;
                 break;
             }
         }
     }
+    _frontend.endpoints[endpoint].client_cnt = client_cnt;
 }
 
 void UR_V16X_Driver::driver_fire_process()

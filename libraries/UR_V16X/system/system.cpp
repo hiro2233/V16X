@@ -157,6 +157,7 @@ void SHAL_SYSTEM::panic(const char *errormsg, ...)
 
     for(;;) {
         SHAL_SYSTEM::delay_sec(1);
+        printf("panic!\n");
     }
 }
 
@@ -175,7 +176,7 @@ void *SHAL_SYSTEM::_fire_isr_timer(void *arg)
             last = millis32();
             _timer_event();
         }
-        usleep(1000);
+        delay_ms(1);
     }
 
     _isr_timer_running = false;
@@ -299,14 +300,31 @@ void SHAL_SYSTEM::run_thread_process(MemberProc proc)
     pthread_create(&run_proc_thread, &thread_attr_run_proc, _fire_thread_member, (void*)proctmp);
 }
 
-void SHAL_SYSTEM::delay_ms(uint16_t ms)
+void SHAL_SYSTEM::delay_ms(uint32_t ms)
 {
-    usleep(ms * 1000);
+    uint32_t start = millis32();
+    uint32_t now_micros = micros32();
+    uint32_t dt_micros = 0;
+    uint32_t centinel_micros = 1000;
+
+    while ((millis32() - start) < ms) {
+        dt_micros = micros32() - now_micros;
+        now_micros = micros32();
+        usleep(centinel_micros);
+
+        if (dt_micros > centinel_micros) {
+            centinel_micros = centinel_micros + (dt_micros - centinel_micros);
+        }
+
+        if (dt_micros < centinel_micros) {
+            centinel_micros = centinel_micros - dt_micros;
+        }
+    }
 }
 
 void SHAL_SYSTEM::delay_sec(uint16_t sec)
 {
-    sleep(sec);
+    delay_ms(sec * 1000);
 }
 
 void SHAL_SYSTEM::printf(const char *printmsg, ...)
@@ -317,6 +335,16 @@ void SHAL_SYSTEM::printf(const char *printmsg, ...)
     va_start(vl, printmsg);
     vprintf(printmsg, vl);
     va_end(vl);
+}
+
+const char *SHAL_SYSTEM::get_date()
+{
+    static char buf[512] = {0};
+    memset(buf, 0, sizeof(buf));
+    time_t now = time(0);
+    struct tm tm = *gmtime(&now);
+    strftime(buf, sizeof(buf), "%a, %d %b %Y %H:%M:%S %Z", &tm);
+    return buf;
 }
 
 #if !defined(__WXGTK__) && !defined(__WXMSW__)
