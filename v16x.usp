@@ -87,6 +87,7 @@
 		</Compiler>
 		<Linker>
 			<Add option="-pthread" />
+			<Add library="crypto" />
 		</Linker>
 		<Unit filename="app/main.cpp" />
 		<Unit filename="app/v16x_server.cpp" />
