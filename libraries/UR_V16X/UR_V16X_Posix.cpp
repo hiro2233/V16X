@@ -1015,41 +1015,41 @@ int UR_V16X_Posix::parse_request(int fd, http_request_t *req)
 
 int UR_V16X_Posix::parse_query(char *query, char delimiter, char setter, query_param_t *params, int max_params)
 {
-	int i = 0;
+    int i = 0;
 
-	if (NULL == query || '\0' == *query) {
-		return -1;
-	}
+    if (NULL == query || '\0' == *query) {
+        return -1;
+    }
 
-	params[i++].key = query;
-	while (i < max_params && NULL != (query = strchr(query, delimiter))) {
-		*query = '\0';
-		params[i].key = ++query;
-		params[i].val = NULL;
+    params[i++].key = query;
+    while (i < max_params && NULL != (query = strchr(query, delimiter))) {
+        *query = '\0';
+        params[i].key = ++query;
+        params[i].val = NULL;
 
-		/* Go back and split previous param */
-		if (i > 0 && setter != 0) {
-			if ((params[i - 1].val = strchr(params[i - 1].key, setter)) != NULL) {
-				*(params[i - 1].val)++ = '\0';
+        /* Go back and split previous param */
+        if (i > 0 && setter != 0) {
+            if ((params[i - 1].val = strchr(params[i - 1].key, setter)) != NULL) {
+                *(params[i - 1].val)++ = '\0';
                 char * pchar = NULL;
                 pchar = strtok(params[i-1].val," ");
                 while (pchar != NULL) {
                     pchar = strtok(NULL, " ");
                 }
                 params[i].val = pchar;
-			}
-		}
-		i++;
-	}
+            }
+        }
+        i++;
+    }
 
-	if (setter != 0) {
+    if (setter != 0) {
         /* Go back and split last param */
         if ((params[i - 1].val = strchr(params[i - 1].key, setter)) != NULL) {
             *(params[i - 1].val)++ = '\0';
         }
-	}
+    }
 
-	return i;
+    return i;
 }
 
 void UR_V16X_Posix::handle_message_outhttp(int fd, char *longmsg)
