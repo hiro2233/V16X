@@ -31,20 +31,20 @@
 void signal_handler(int sig)
 {
     char msg[10];
-	switch(sig) {
-		case SIGHUP:
-		    sprintf(msg, "%s", "SIGHUP");
-		    break;
-		case SIGTERM:
-		    sprintf(msg, "%s", "SIGTERM");
-		    break;
+    switch(sig) {
+        case SIGHUP:
+            sprintf(msg, "%s", "SIGHUP");
+            break;
+        case SIGTERM:
+            sprintf(msg, "%s", "SIGTERM");
+            break;
         case SIGSEGV:
             sprintf(msg, "%s", "SIGSEGV");
             break;
         case SIGINT:
             sprintf(msg, "%s", "SIGINT");
-			break;
-	}
+            break;
+    }
 
 #if SHAL_DEBUG >= 1
     printf("Signal %s received, Shutting down V16X system.\n", msg);
@@ -84,15 +84,15 @@ void SHAL_SYSTEM::system_shutdown()
 
 void SHAL_SYSTEM::init()
 {
-	struct sigaction action;
+    struct sigaction action;
     memset(&action, 0, sizeof(struct sigaction));
-	action.sa_handler = signal_handler;
-	action.sa_flags = 0;
-	sigemptyset(&action.sa_mask);
-	sigaction(SIGINT, &action, NULL);
-	sigaction(SIGTERM, &action, NULL);
-	sigaction(SIGHUP, &action, NULL);
-	sigaction(SIGSEGV, &action, NULL);
+    action.sa_handler = signal_handler;
+    action.sa_flags = 0;
+    sigemptyset(&action.sa_mask);
+    sigaction(SIGINT, &action, NULL);
+    sigaction(SIGTERM, &action, NULL);
+    sigaction(SIGHUP, &action, NULL);
+    sigaction(SIGSEGV, &action, NULL);
 
     signal(SIGPIPE, SIG_IGN);
 
