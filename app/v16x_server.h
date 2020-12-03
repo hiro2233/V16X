@@ -42,4 +42,6 @@ public:
 private:
 
     UR_V16X v16x;
+    int bindport;
+    char *bindaddr;
 };

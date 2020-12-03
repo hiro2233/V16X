@@ -19,6 +19,12 @@
 
 #include "v16x_server.h"
 
+const char msg[] = {"V16X Server, HTTP I/O realtime hybrid nanoservices server.\n" \
+                    "Copyright (c) 2019,2020 Hiroshi Takey F. <htakey@gmail.com>\n" \
+                    "This program comes with ABSOLUTELY NO WARRANTY.\n" \
+                    "This is free software; licensed under AGPLv3.\n" \
+                    "See source distribution for detailed copyright notices.\n"};
+
 V16X_server::V16X_server()
 {
 }
@@ -40,17 +46,43 @@ void V16X_server::server_shutdown()
     v16x.shutdown_all();
 }
 
+void printhelp()
+{
+    SHAL_SYSTEM::printf("%s\n\n", msg);
+	SHAL_SYSTEM::printf("V16X server version %s\n", SERVER_VERSION);
+	SHAL_SYSTEM::printf("Usage: v16x [-h] [-a <addr>] [-p <port>]\n");
+	SHAL_SYSTEM::printf("       -a <address>   - Bind to IP address\n");
+	SHAL_SYSTEM::printf("       -p <port>      - Bind to port\n");
+	SHAL_SYSTEM::printf("       -h             - Print this help\n");
+	exit(0);
+}
+
 void V16X_server::configure()
 {
-    const char msg[] = {"V16X Server, HTTP I/O realtime hybrid nanoservices server.\n" \
-                        "Copyright (c) 2019,2020 Hiroshi Takey F. <htakey@gmail.com>\n" \
-                        "This program comes with ABSOLUTELY NO WARRANTY.\n" \
-                        "This is free software; licensed under AGPLv3.\n" \
-                        "See source distribution for detailed copyright notices.\n"};
+    int c;
+    while ((c = getopt(SHAL_SYSTEM::system_argcv.argc, SHAL_SYSTEM::system_argcv.argv, "a:p:h")) != EOF) {
+        switch(c) {
+            case 'a':
+                bindaddr = optarg;
+                break;
+            case 'p':
+                bindport = atoi(optarg);
+                break;
+            case 'h':
+                printhelp();
+                break;
+            default:
+                SHAL_SYSTEM::printf("Unrecognized option\n");
+                printhelp();
+                break;
+        }
+    }
 
-    SHAL_SYSTEM::printf("%s\n", msg);
+    SHAL_SYSTEM::printf("V16X server version %s\n\n", SERVER_VERSION);
     SHAL_SYSTEM::printf("Configuring server\n");
 
+    v16x.set_bindaddr(bindaddr);
+    v16x.set_bindport(bindport);
     v16x.init();
 
     SHAL_SYSTEM::init();

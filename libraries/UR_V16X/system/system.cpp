@@ -347,8 +347,4 @@ const char *SHAL_SYSTEM::get_date()
     return buf;
 }
 
-#if !defined(__WXGTK__) && !defined(__WXMSW__)
 SHAL_SYSTEM_MAIN()
-#else
-SHAL_SYSTEM_WX_MAIN()
-#endif
