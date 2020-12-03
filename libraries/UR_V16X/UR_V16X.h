@@ -68,10 +68,24 @@ public:
 
     // shutdown V16X drivers.
     void shutdown_all();
+    void set_bindport(int port) {
+        _bindport = port;
+    }
+    void set_bindaddr(char *addr) {
+        _bindaddr = addr;
+    }
+    int get_bindport() {
+        return _bindport;
+    }
+    const char *get_bindaddr() {
+        return _bindaddr;
+    }
 
 private:
     // singleton.
     static UR_V16X *_frontend;
+    int _bindport;
+    char *_bindaddr;
 
     // how many drivers do we have?.
     uint8_t _num_drivers;

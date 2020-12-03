@@ -57,27 +57,12 @@ typedef struct __system_argcv_s {
     void configure(); \
     void loop(); \
     volatile sig_atomic_t sig_evt = 0; \
+    system_argcv_t SHAL_SYSTEM::system_argcv; \
     extern "C" {                               \
     int SHAL_MAIN(int argc, char* const argv[]); \
     int SHAL_MAIN(int argc, char* const argv[]) { \
-        configure(); \
-        while (!sig_evt) { \
-            loop(); \
-        } \
-        return 0; \
-    } \
-    }
-
-#define SHAL_SYSTEM_WX_MAIN() \
-    void configure(); \
-    void loop(); \
-    volatile sig_atomic_t sig_evt = 0; \
-    system_argcv_t system_argcv; \
-    extern "C" {                               \
-    int SHAL_MAIN(int argc, char* const argv[]); \
-    int SHAL_MAIN(int argc, char* const argv[]) { \
-        system_argcv.argc = argc; \
-        system_argcv.argv = (char**)argv; \
+        SHAL_SYSTEM::system_argcv.argc = argc; \
+        SHAL_SYSTEM::system_argcv.argv = (char**)argv; \
         configure(); \
         while (!sig_evt) { \
             loop(); \
@@ -128,8 +113,7 @@ namespace SHAL_SYSTEM {
     uint64_t millis64();
 
     extern bool _isr_timer_running;
-
+    extern system_argcv_t system_argcv;
 } // namespace V16X
 
 extern volatile sig_atomic_t sig_evt;
-extern system_argcv_t system_argcv;

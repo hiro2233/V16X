@@ -137,6 +137,7 @@ public:
 private:
     uint8_t _endpoint;
     int default_port = 9998;
+    char default_addr[16];
     int listenfd;
 
     pthread_mutex_t clients_mutex = PTHREAD_MUTEX_INITIALIZER;

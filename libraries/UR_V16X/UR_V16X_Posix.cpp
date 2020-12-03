@@ -68,6 +68,16 @@ UR_V16X_Posix::UR_V16X_Posix(UR_V16X &v16x) :
     UR_V16X_Driver(v16x)
 {
     _endpoint = _frontend.register_endpoint();
+    int port = _frontend.get_bindport();
+    char *addr = _frontend.get_bindaddr();
+    if (addr) {
+        sprintf(default_addr, "%s", addr);
+    } else {
+        sprintf(default_addr, "%s", "0.0.0.0");
+    }
+    if (port != 0) {
+        default_port = port;
+    }
     init();
 }
 
@@ -83,7 +93,7 @@ void UR_V16X_Posix::init(void)
 
     listenfd = open_listenfd(default_port);
     if (listenfd > 0) {
-        SHAL_SYSTEM::printf("Listen on port %d, fd is %d\n\n\n", default_port, listenfd);
+        SHAL_SYSTEM::printf("Listen on addres %s port %d, fd is %d\n\n\n", default_addr, default_port, listenfd);
         fflush(stdout);
     } else {
         perror("ERROR");
@@ -212,8 +222,8 @@ int UR_V16X_Posix::open_listenfd(int port)
 
     memset(&serveraddr, 0, sizeof(serveraddr));
     serveraddr.sin_family = AF_INET;
-    //inet_aton("127.0.2.1", &serveraddr.sin_addr.s_addr);
-    serveraddr.sin_addr.s_addr = htonl(INADDR_ANY);
+    inet_aton((const char*)default_addr, &serveraddr.sin_addr);
+    //serveraddr.sin_addr.s_addr = htonl(INADDR_ANY);
     serveraddr.sin_port = htons((unsigned short)port);
 
     if (bind(listenfd, (SA *)&serveraddr, sizeof(serveraddr)) < 0) {
