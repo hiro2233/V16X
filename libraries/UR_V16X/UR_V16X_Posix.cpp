@@ -69,7 +69,7 @@ UR_V16X_Posix::UR_V16X_Posix(UR_V16X &v16x) :
 {
     _endpoint = _frontend.register_endpoint();
     int port = _frontend.get_bindport();
-    char *addr = _frontend.get_bindaddr();
+    const char *addr = _frontend.get_bindaddr();
     if (addr) {
         sprintf(default_addr, "%s", addr);
     } else {
