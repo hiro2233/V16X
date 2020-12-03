@@ -26,6 +26,7 @@ UR_V16X *UR_V16X::_frontend;
   UR_V16X constructor
  */
 UR_V16X::UR_V16X() :
+    _bindport(0),
     _num_drivers(0),
     _num_endpoints(0)
 {
