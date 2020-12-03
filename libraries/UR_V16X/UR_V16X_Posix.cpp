@@ -322,10 +322,8 @@ void UR_V16X_Posix::fire_process()
         if (poll_in(netsocket_info->connfd, FIREPROC_POLLIN_INTERVAL)) {
             rlen = process(netsocket_info->connfd, &netsocket_info->clientaddr);    // Process all incomming data
             pollcnt = 0;
-            //SHAL_SYSTEM::printf("POLL IN ( CLID: %d ) fd: %d Address: %s:%d\n\n", netsocket_info->clid, netsocket_info->connfd, inet_ntoa(netsocket_info->clientaddr.sin_addr), ntohs(netsocket_info->clientaddr.sin_port));
         }
 
-        //SHAL_SYSTEM::printf("WHILE POLL IN ( CLID: %d ) fd: %d Address: %s:%d\n\n", netsocket_info->clid, netsocket_info->connfd, inet_ntoa(netsocket_info->clientaddr.sin_addr), ntohs(netsocket_info->clientaddr.sin_port));
         if (!netsocket_info->event_stream) {
             pollcnt++;
         }
@@ -581,27 +579,8 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *clientaddr)
     return ret;
 }
 
-int Base64Encode(const char* message, char** buffer)
+int UR_V16X_Posix::_ws_b64_ntop(const char * src, size_t srclen, char * dst, size_t dstlen)
 {
-  BIO *bio, *b64;
-  FILE* stream;
-  int encodedSize = 4*ceil((double)strlen(message)/3);
-  *buffer = (char *)malloc(encodedSize+1);
-
-  stream = fmemopen(*buffer, encodedSize+1, "w");
-  b64 = BIO_new(BIO_f_base64());
-  bio = BIO_new_fp(stream, BIO_NOCLOSE);
-  bio = BIO_push(b64, bio);
-  BIO_set_flags(bio, BIO_FLAGS_BASE64_NO_NL); //Ignore newlines - write everything in one line
-  BIO_write(bio, message, strlen(message));
-  (void)BIO_flush(bio);
-  BIO_free_all(bio);
-  fclose(stream);
-
-  return (0); //success
-}
-
-int ws_b64_ntop(const char * src, size_t srclen, char * dst, size_t dstlen) {
     size_t len = 0;
     int total_len = 0;
 
@@ -637,7 +616,8 @@ int ws_b64_ntop(const char * src, size_t srclen, char * dst, size_t dstlen) {
     return len;
 }
 
-int ws_b64_pton(const char * src, char * dst, int dstlen) {
+int UR_V16X_Posix::_ws_b64_pton(const char * src, char * dst, int dstlen)
+{
     int len = 0;
     int total_len = 0;
     int pending = 0;
@@ -669,8 +649,7 @@ int ws_b64_pton(const char * src, char * dst, int dstlen) {
     return len;
 }
 
-int encode_hybi(char const *src, size_t srclength,
-                char *target, size_t targsize, unsigned int opcode)
+int UR_V16X_Posix::_encode_hybi(char const *src, size_t srclength, char *target, size_t targsize, unsigned int opcode)
 {
     unsigned long long payload_offset = 2;
     int len = 0;
@@ -702,13 +681,10 @@ int encode_hybi(char const *src, size_t srclength,
     } else {
         SHAL_SYSTEM::printf("Sending frames larger than 65535 bytes not supported\n");
         return -1;
-        //target[1] = (char) 127;
-        //*(u_long*)&(target[2]) = htonl(b64_sz);
-        //payload_offset = 10;
     }
 
     if (opcode & OPCODE_TEXT) {
-        len = ws_b64_ntop(src, srclength, target+payload_offset, targsize-payload_offset);
+        len = _ws_b64_ntop(src, srclength, target+payload_offset, targsize-payload_offset);
     } else {
         memcpy(target+payload_offset, src, srclength);
         len = srclength;
@@ -721,9 +697,7 @@ int encode_hybi(char const *src, size_t srclength,
     return len + payload_offset;
 }
 
-int decode_hybi(char *src, size_t srclength,
-                char *target, int targsize,
-                unsigned int *opcode, unsigned int *left)
+int UR_V16X_Posix::_decode_hybi(char *src, size_t srclength, char *target, int targsize, unsigned int *opcode, unsigned int *left)
 {
     char *frame;
     char *mask;
@@ -740,7 +714,6 @@ int decode_hybi(char *src, size_t srclength,
     *left = srclength;
     frame = src;
 
-    //SHAL_SYSTEM::printf("Deocde new frame\n");
     uint32_t tgtcnt = 0;
     while (1) {
         tgtcnt++;
@@ -748,19 +721,12 @@ int decode_hybi(char *src, size_t srclength,
         // Find beginning of next frame. First time hdr_length, masked and
         // payload_length are zero
         frame += hdr_length + 4 * masked + payload_length;
-        //SHAL_SYSTEM::printf("frame[0..3]: 0x%x 0x%x 0x%x 0x%x (tot: %d)\n",
-        //       (unsigned char) frame[0],
-        //       (unsigned char) frame[1],
-        //       (unsigned char) frame[2],
-        //       (unsigned char) frame[3], srclength);
 
         if (frame > src + srclength) {
-            //SHAL_SYSTEM::printf("Truncated frame from client, need %ld more bytes\n", frame - (src + srclength) );
             break;
         }
         remaining = (src + srclength) - frame;
         if (remaining < 2) {
-            //SHAL_SYSTEM::printf("Truncated frame header from client\n");
             break;
         }
         framecount ++;
@@ -776,32 +742,27 @@ int decode_hybi(char *src, size_t srclength,
         payload_length = frame[1] & 0x7f;
         if (payload_length < 126) {
             hdr_length = 2;
-            //frame += 2 * sizeof(char);
         } else if (payload_length == 126) {
             payload_length = (frame[2] << 8) + frame[3];
             hdr_length = 4;
         } else {
-            //SHAL_SYSTEM::printf("Receiving frames larger than 65535 bytes not supported\n");
             return -1;
         }
         if ((hdr_length + 4*masked + payload_length) > remaining) {
             continue;
         }
-        //SHAL_SYSTEM::printf("    payload_length: %u, raw remaining: %u\n", payload_length, remaining);
+
         payload = frame + hdr_length + 4 * masked;
 
         if (*opcode != OPCODE_TEXT && *opcode != OPCODE_BINARY) {
-            //SHAL_SYSTEM::printf("Ignoring non-data frame, opcode 0x%x\n", *opcode);
             continue;
         }
 
         if (payload_length == 0) {
-            //SHAL_SYSTEM::printf("Ignoring empty frame\n");
             continue;
         }
 
         if ((payload_length > 0) && (!masked)) {
-            //SHAL_SYSTEM::printf("Received unmasked payload from client\n");
             return -1;
         }
 
@@ -817,7 +778,7 @@ int decode_hybi(char *src, size_t srclength,
 
         if (*opcode & OPCODE_TEXT) {
             // base64 decode the data
-            len = ws_b64_pton(payload, target+target_offset, targsize);
+            len = _ws_b64_pton(payload, target+target_offset, targsize);
 #if V16X_DEBUG >= 1
             SHAL_SYSTEM::printf("tgtcnt TEXT: %d\n", tgtcnt);
 #endif // V16X_DEBUG
@@ -832,7 +793,6 @@ int decode_hybi(char *src, size_t srclength,
         // Restore the first character of the next frame
         payload[payload_length] = save_char;
         if (len < 0) {
-            //SHAL_SYSTEM::printf("Base64 decode error code %d\n", len);
             return len;
         }
         target_offset += len;
@@ -844,10 +804,7 @@ int decode_hybi(char *src, size_t srclength,
         int offsetcp = hdr_length + (4 * masked);
         memset(&target[0], 0, payload_length + 1);
         memcpy(&target[0], src + offsetcp, payload_length);
-        //target[payload_length + 1] = '\0';
-    }// else {
-        //target[payload_length + 1] = '\0';
-    //}
+    }
 
     target[payload_length + 1] = '\0';
     *left = remaining;
@@ -910,8 +867,7 @@ int UR_V16X_Posix::parse_request(int fd, http_request_t *req)
             SHA1_Update(&shactx, (const unsigned char*)fldval, strlen(fldval));
             SHA1_Final((unsigned char*)digest, &shactx);
 
-            //Base64Encode((const char*)digest, b64enc);
-            ws_b64_ntop(digest, strlen(digest), b64enc, MAX_BUFF);
+            _ws_b64_ntop(digest, strlen(digest), b64enc, MAX_BUFF);
 
             SHAL_SYSTEM::printf("\n++++++++Web Socket parsed!++++++++\n");
 #if V16X_DEBUG >= 1
@@ -956,7 +912,7 @@ int UR_V16X_Posix::parse_request(int fd, http_request_t *req)
     unsigned int opcode, left;
 
     memcpy(buftmp, buf, dat_io.io_cnt);
-    int len = decode_hybi(buftmp, dat_io.io_cnt, wsdec, MAX_BUFF, &opcode, &left);
+    int len = _decode_hybi(buftmp, dat_io.io_cnt, wsdec, MAX_BUFF, &opcode, &left);
     (void)len;
 
 #if V16X_DEBUG >= 1
@@ -1415,7 +1371,7 @@ void UR_V16X_Posix::process_event_stream()
                 memset(msg, '\0', MAX_BUFF);
                 char buftmp[MAX_BUFF] = {0};
                 sprintf(buftmp, "{\"len\":%lu,\"clid\":\"%d\",\"fd\":%d}", sizeof(buftmp), client.clid, client.connfd);
-                encode_hybi(buftmp, strlen(buftmp), msg, MAX_BUFF, OPCODE_BINARY);
+                _encode_hybi(buftmp, strlen(buftmp), msg, MAX_BUFF, OPCODE_BINARY);
                 writen(client.connfd, msg, strlen(msg));
                 //shutdown(clients[i]->connfd, SHUT_RDWR);
             }

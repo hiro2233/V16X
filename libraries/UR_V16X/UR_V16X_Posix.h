@@ -186,4 +186,8 @@ private:
     bool _has_client_method_get(int fd);
     bool _has_ip_method_get(sockaddr_in cliaddr);
     void _get_client(TYPE_TRANSACTION_E typetr, netsocket_inf_t &client);
+    int _decode_hybi(char *src, size_t srclength, char *target, int targsize, unsigned int *opcode, unsigned int *left);
+    int _encode_hybi(char const *src, size_t srclength, char *target, size_t targsize, unsigned int opcode);
+    int _ws_b64_pton(const char * src, char * dst, int dstlen);
+    int _ws_b64_ntop(const char * src, size_t srclen, char * dst, size_t dstlen);
 };
