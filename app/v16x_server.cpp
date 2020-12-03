@@ -46,7 +46,7 @@ void V16X_server::server_shutdown()
     v16x.shutdown_all();
 }
 
-void printhelp()
+void V16X_server::printhelp()
 {
     SHAL_SYSTEM::printf("%s\n\n", msg);
 	SHAL_SYSTEM::printf("V16X server version %s\n", SERVER_VERSION);

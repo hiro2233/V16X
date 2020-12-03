@@ -38,6 +38,7 @@ public:
 
     // shutdown all system
     void server_shutdown();
+    void printhelp();
 
 private:
 
