@@ -75,7 +75,7 @@ UR_V16X_Posix::UR_V16X_Posix(UR_V16X &v16x) :
     } else {
         sprintf(default_addr, "%s", "0.0.0.0");
     }
-    if (port != 0) {
+    if (port > 0) {
         default_port = port;
     }
     init();
