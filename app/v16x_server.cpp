@@ -49,12 +49,12 @@ void V16X_server::server_shutdown()
 void V16X_server::printhelp()
 {
     SHAL_SYSTEM::printf("%s\n\n", msg);
-	SHAL_SYSTEM::printf("V16X server version %s\n", SERVER_VERSION);
-	SHAL_SYSTEM::printf("Usage: v16x [-h] [-a <addr>] [-p <port>]\n");
-	SHAL_SYSTEM::printf("       -a <address>   - Bind to IP address\n");
-	SHAL_SYSTEM::printf("       -p <port>      - Bind to port\n");
-	SHAL_SYSTEM::printf("       -h             - Print this help\n");
-	exit(0);
+    SHAL_SYSTEM::printf("V16X server version %s\n", SERVER_VERSION);
+    SHAL_SYSTEM::printf("Usage: v16x [-h] [-a <addr>] [-p <port>]\n");
+    SHAL_SYSTEM::printf("       -a <address>   - Bind to IP address\n");
+    SHAL_SYSTEM::printf("       -p <port>      - Bind to port\n");
+    SHAL_SYSTEM::printf("       -h             - Print this help\n");
+    exit(0);
 }
 
 void V16X_server::configure()
