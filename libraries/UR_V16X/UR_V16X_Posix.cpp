@@ -1118,26 +1118,30 @@ void UR_V16X_Posix::serve_static(int out_fd, int in_fd, struct sockaddr_in *c_ad
 
     SHAL_SYSTEM::printf("\tServing static #1 fd:%d offset: %d offsettmp: %d end: %d diff: %d - %s Addr:%s:%d\n", in_fd, (int)offset, (int)offsettmp, (int)end, (int)(end - offset), filetmp, inet_ntoa(c_addr->sin_addr), ntohs(c_addr->sin_port));
     fflush(stdout);
-#ifdef __MSYS__
-    char buftmp[end - offsettmp];
-#endif
 
-    while(offset < end) {
+    while(offsettmp < end) {
 #ifdef __MSYS__
-        read(in_fd, buftmp, end - offsettmp);
-        offset = write(out_fd, buftmp, end - offsettmp);
+        char buftmp[MAX_BUFF * 512];
+        if (offsettmp + (MAX_BUFF * 512) > end) {
+            read(in_fd, buftmp, end - offsettmp);
+            offset = write(out_fd, buftmp, end - offsettmp);
+            break;
+        }
+        read(in_fd, buftmp, MAX_BUFF * 512);
+        offset = write(out_fd, buftmp, MAX_BUFF * 512);
+        offsettmp += offset;
 #else
         if(sendfile(out_fd, in_fd, &offset, end - offset) <= 0) {
             break;
         }
 #endif // __MSYS__
-        //offsettmp = offset;
-        //filetmp[strlen(req->filename)] = '\0';
 #if V16X_DEBUG >= 1
-        SHAL_SYSTEM::printf("\tServing static #2 fd:%d offset: %d end: %d diff: %d - %s Addr:%s:%d\n", in_fd, (int)offset, (int)end, (int)(end - offset), filetmp, inet_ntoa(c_addr->sin_addr), ntohs(c_addr->sin_port));
+        SHAL_SYSTEM::printf("\tServing static #2 fd:%d offsettmp: %d offset: %d end: %d diff: %d - %s Addr:%s:%d\n", in_fd, (int)offsettmp, (int)offset, (int)end, (int)(end - offsettmp), filetmp, inet_ntoa(c_addr->sin_addr), ntohs(c_addr->sin_port));
         fflush(stdout);
 #endif // V16X_DEBUG
+#ifndef __MSYS__
         break;
+#endif // __MSYS__
     }
 }
 
