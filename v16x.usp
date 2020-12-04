@@ -10,7 +10,7 @@
 			<Target title="unix_debug">
 				<Option platforms="Unix;Mac;" />
 				<Option output="build/debug/v16x" prefix_auto="1" extension_auto="1" />
-				<Option working_dir="build/debug/" />
+				<Option working_dir="htdocs/" />
 				<Option object_output="build/.obj/debug/" />
 				<Option type="1" />
 				<Option compiler="gcc" />
@@ -22,7 +22,7 @@
 			<Target title="unix_release">
 				<Option platforms="Unix;Mac;" />
 				<Option output="build/release/v16x" prefix_auto="1" extension_auto="1" />
-				<Option working_dir="build/release/" />
+				<Option working_dir="htdocs/" />
 				<Option object_output="build/.obj/release/" />
 				<Option type="1" />
 				<Option compiler="gcc" />
@@ -42,7 +42,7 @@
 			<Target title="win32_debug">
 				<Option platforms="Windows;" />
 				<Option output="build/debug/v16x" prefix_auto="1" extension_auto="1" />
-				<Option working_dir="build/debug/" />
+				<Option working_dir="htdocs/" />
 				<Option object_output="build/.obj/debug/" />
 				<Option type="1" />
 				<Option compiler="gcc" />
@@ -58,7 +58,7 @@
 			<Target title="win32_release">
 				<Option platforms="Windows;" />
 				<Option output="build/release/v16x" prefix_auto="1" extension_auto="1" />
-				<Option working_dir="build/release/" />
+				<Option working_dir="htdocs/" />
 				<Option object_output="build/.obj/release/" />
 				<Option type="1" />
 				<Option compiler="gcc" />
