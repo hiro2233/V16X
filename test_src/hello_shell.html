@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8'/>
+    <meta name='viewport' content='width=device-width, initial-scale=1'>
+    <title>Hello World 1</title>
+    <style>
+        BODY, HTML {
+            width: 100%;
+            height: 100%;
+            font-size: 18px;
+            overflow: hidden;
+            color: white;
+            background-color: blue;
+        }
+        .scriptcpp {
+            width: 99%;
+            overflow: hidden;
+            margin: 0px;
+            display: block;
+            font-family: monospace;
+            font-size:1.0vw;
+        }
+
+        .display-canvas {
+            width: 100%;
+            height: 500px;
+            overflow: hidden;
+            margin: 0px;
+            display: block;
+        }
+
+        .display-canvas-mob {
+            width: 100%;
+            height: 500px;
+            overflow: hidden;
+            margin: 0px;
+            display: block;
+        }
+
+        /* the canvas *must not* have any border or padding, or mouse coords will be wrong */
+        canvas.display-canvas {
+            border: 0px none;
+            background-color: blue;
+        }
+
+        textarea.scriptcpp {
+            width: 99%;
+            overflow-y: scroll;
+            font-family: monospace;
+            font-size:1.0vw;
+            display: block;
+        }
+
+        label.margins {
+            width: 100%;
+            font-family: monospace;
+            font-size:1.0vw;
+            display: block;
+            margin: 0.1%;
+        }
+
+        div.scriptcpp {
+            margin-left: auto;
+            margin-right: auto;
+            text-align: left;
+            font-family: monospace;
+            font-size:1.0vw;
+            display: block;
+        }
+
+        div.scriptcpp_border {
+            border: 1px solid black;
+        }
+
+        .left-align {
+            display: block;
+            float: left;
+            margin-right: 1%;
+            #margin: 0.1%;
+            font-size:1.0vw;
+            font-family: monospace;
+        }
+
+        .right-align {
+            display: block;
+            float: right;
+            margin-left: 1%;
+            font-size:1.0vw;
+            font-family: monospace;
+        }
+
+        @-webkit-keyframes rotation {
+            from {
+                -webkit-transform: rotate(0deg);
+            }
+            to {
+                -webkit-transform: rotate(360deg);
+            }
+        }
+
+        @-moz-keyframes rotation {
+            from {
+                -moz-transform: rotate(0deg);
+            }
+            to {
+                -moz-transform: rotate(360deg);
+            }
+        }
+
+        @-o-keyframes rotation {
+            from {
+                -o-transform: rotate(0deg);
+            }
+            to {
+                -o-transform: rotate(360deg);
+            }
+        }
+
+        @keyframes rotation {
+            from {
+                transform: rotate(0deg);
+            }
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .slidecontainer {
+            width: 99%;
+            display: block;
+        }
+
+        .slider {
+            -webkit-appearance: none;
+            width: 99%;
+            height: 40px;
+            background: #d3d3d3;
+            outline: none;
+            opacity: 1;
+            -webkit-transition: .2s;
+            transition: opacity .2s;
+            border-radius: 10px;
+            display: block;
+        }
+
+        .slider:hover {
+            opacity: 1;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 25px;
+            height: 40px;
+            background: #4CFF50;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        .slider::-moz-range-thumb {
+            width: 25px;
+            height: 40px;
+            background: #4CFF50;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        @media all and (min-width: 0px) and (max-width: 960px) and (orientation: portrait) {
+            BODY, HTML {
+                background-color: blue;
+                width: 98%;
+                height: 98%;
+                font-size: 18px;
+                overflow: hidden;
+                color: white;
+            }
+            .scriptcpp {
+                width: 100%;
+                overflow: hidden;
+                margin: 0px;
+                display: block;
+                font-family: monospace;
+                font-size:3vw;
+            }
+
+            textarea.scriptcpp {
+                width: 98%;
+                overflow-y: scroll;
+                font-family: monospace;
+                font-size:3vw;
+                display: block;
+            }
+
+            .display-canvas {
+                width: 100%;
+                height: 220px;
+                overflow: hidden;
+                margin: 0px;
+                display: block;
+                border: 0px none;
+                display: block;
+            }
+
+            .display-canvas-mob {
+                width: 100%;
+                height: 170px;
+                overflow: hidden;
+                margin: 0px;
+                display: block;
+            }
+
+            /* the canvas *must not* have any border or padding, or mouse coords will be wrong */
+            canvas.display-canvas {
+                border: 0px none;
+                background-color: blue;
+                display: block;
+            }
+
+            label.scriptcpp{
+                width: 100%;
+                font-family: monospace;
+                font-size:3vw;
+                display: block;
+            }
+
+            div.scriptcpp {
+                margin-left: auto;
+                margin-right: auto;
+                text-align: left;
+                font-family: monospace;
+                font-size:3vw;
+                display: block;
+            }
+
+            .left-align {
+                display: block;
+                float: left;
+                margin-right: 1%;
+                #margin: 0.1%;
+                font-size:3vw;
+                font-family: monospace;
+            }
+
+            .right-align {
+                display: block;
+                float: right;
+                margin-left: 1%;
+                font-size:3vw;
+                font-family: monospace;
+            }
+        }
+
+        @media all and (min-width: 340px) and (max-width: 1281px) and (orientation: portrait) {
+            BODY, HTML {
+                background-color: blue;
+                width: 98%;
+                height: 98%;
+                font-size: 18px;
+                overflow: hidden;
+                color: white;
+            }
+            .scriptcpp {
+                width: 100%;
+                overflow: hidden;
+                margin: 0px;
+                display: block;
+                font-family: monospace;
+                font-size:5vw;
+            }
+
+            textarea.scriptcpp {
+                width: 98%;
+                overflow-y: scroll;
+                font-family: monospace;
+                font-size:5vw;
+                display: block;
+            }
+
+            .display-canvas {
+                width: 100%;
+                height: 250px;
+                overflow: hidden;
+                margin: 0px;
+                display: block;
+                border: 0px none;
+                display: block;
+            }
+
+            .display-canvas-mob {
+                width: 100%;
+                height: 170px;
+                overflow: hidden;
+                margin: 0px;
+                display: block;
+            }
+
+            /* the canvas *must not* have any border or padding, or mouse coords will be wrong */
+            canvas.display-canvas {
+                border: 0px none;
+                background-color: blue;
+                display: block;
+            }
+
+            label.scriptcpp{
+                width: 100%;
+                font-family: monospace;
+                font-size:5vw;
+                display: block;
+            }
+
+            div.scriptcpp {
+                margin-left: auto;
+                margin-right: auto;
+                text-align: left;
+                font-family: monospace;
+                font-size:5vw;
+                display: block;
+            }
+
+            .left-align {
+                display: block;
+                float: left;
+                margin-right: 2%;
+                #margin: 0.2%;
+                font-size:5vw;
+                font-family: monospace;
+            }
+
+            .right-align {
+                display: block;
+                float: right;
+                margin-left: 2%;
+                font-size:5vw;
+                font-family: monospace;
+            }
+
+          /* tablet   e.g. ipad/ipad pro */
+          @media all and (min-width: 400) and (max-width: 1920px) and (orientation : landscape) {
+            BODY, HTML {
+                background-color: red;
+                width: 98%;
+                height: 98%;
+                font-size: 18px;
+                color: white;
+            }
+        }
+
+    </style>
+</head>
+<body>
+    <span>
+        <div class='scriptcpp'>
+            <button style='border-radius:5px;' class='left-align' id='draw_cube_btn' onclick='draw_cube_click();'>Autorotate Cube</button>
+            <button style='border-radius:5px;' class='left-align' id='stop_drawing_btn' onclick='stop_drawing_click();'>Stop</button>
+        </div>
+        <div class='scriptcpp'>
+            <label class='left-align'>Fps:</label>
+            <span class='left-align' id='fps'></span>
+        </div>
+        <div class='scriptcpp'>
+            <label class='left-align'>Angle:</label>
+            <span class='left-align' id='angle'></span>
+            <center>
+                    <span id='status'></span>
+            </center>
+        </div>
+    </span>
+    <div style='background-color: blue;'>
+        <center>
+              <canvas class='display-canvas' id='canvas'></canvas>
+        </center>
+    </div>
+    <hr></hr>
+    <div style='grid-template-columns: auto;grid-row: 1;display: grid; overflow: hidden;width: 100%;'>
+                <div style='grid-template-columns: auto;grid-row: 1;display: grid;width: 100%;padding: 0px;'>
+                <label class='left-align'>Rotate:</label>
+                <input class='slider' type='range' min='1' max='360' value='1' id='range_angle_slider'></input>
+                <label class='left-align' style='display:block;'>Val angle:<span id='range_label'></span></label>
+                </div>
+    </div>
+    <div>
+        <hr>
+            <textarea readonly style='border-radius:5px;' class='scriptcpp' id='output' rows='4'></textarea>
+        </hr>
+    </div>
+    <script>
+
+    console.log("Init system");
+    var id = prompt("Enter an ID", "1234ABCD");
+    if (id == null) {
+        id = 0;
+    }
+
+    var range_angle_slider = document.getElementById('range_angle_slider');
+    var range_label = document.getElementById('range_label');
+
+    var sw = false;
+    var stop = false;
+    var range_angle = 1;
+
+    var Module = {
+
+        print: (function()
+        {
+            var element = document.getElementById('output');
+            return function(text) {
+                element.innerHTML += text + "\n";
+                element.scrollTop = element.scrollHeight;
+            };
+        })(),
+
+        canvas: document.getElementById('canvas'),
+        setStatus: function(text) {
+            document.getElementById('status').innerHTML = text;
+            console.log(text);
+            if (text == "") {
+                document.getElementById('status').hidden = true;
+                setTimeout(tim1, 2000);
+            }
+        }
+    }
+
+    Module.onRuntimeInitialized = () => {
+        console.log("module init");
+        document.getElementById('status').innerHTML = "Module init...";
+    }
+
+    range_label.innerHTML = range_angle;
+    range_angle_slider.value = range_angle;
+
+    range_angle_slider.oninput = function()
+    {
+        range_label.innerHTML = this.value;
+        globals.set_cube_angle(parseFloat(this.value));
+    }
+
+    range_angle_slider.onmousedown = function(event)
+    {
+        range_label.innerHTML = this.value;
+    }
+
+    range_angle_slider.onmouseup = function(event)
+    {
+        range_angle = this.value;
+        range_label.innerHTML = range_angle;
+    }
+
+    range_angle_slider.onmouseleave = function(event)
+    {
+        range_label.innerHTML = range_angle;
+        this.value = range_angle;
+    }
+
+    range_angle_slider.onmouseenter = function(event)
+    {
+        range_label.innerHTML = range_angle;
+        this.value = range_angle;
+    }
+
+    function draw_cube_click()
+    {
+        globals.draw_cube();
+    }
+
+    function stop_drawing_click()
+    {
+        globals.stop_drawing();
+    }
+
+    function tim1()
+    {
+        if (typeof globals == 'undefined') {
+            sw = false;
+        } else {
+            sw = globals.initialized;
+        }
+
+        if (sw) {
+            var res_sum = globals.Sum(5, 5);
+            console.log("Tim1 Sum:", res_sum);
+        } else {
+            console.log("Tim1 nel");
+        }
+    }
+
+    document.getElementById('status').innerHTML = "downloading...";
+
+    function tim_eventsource()
+    {
+        var evtSource = new EventSource('/data?id=' + id + 'stream');
+
+        evtSource.onopen = function() {
+            console.log("opened event");
+            globals.set_stream_response("opened event");
+        }
+
+        evtSource.addEventListener("ping", function(e) {
+            console.log("PING:",JSON.parse(e.data));
+            globals.set_stream_response("PING: " + e.data);
+        }, false);
+
+        evtSource.addEventListener("pong", function(e) {
+            console.log("PONG:",JSON.parse(e.data));
+            globals.set_stream_response("PONG: " + e.data);
+        }, false);
+
+        evtSource.onmessage = function(e) {
+            console.log("[message STREAM]:", JSON.parse(e.data));
+            globals.set_stream_response(e.data);
+        }
+
+        evtSource.onerror = function(e) {
+            console.log("EventSource failed:", e.type);
+            globals.set_stream_response("EventSource failed: " + e.type);
+            evtSource.close();
+            setTimeout(tim_eventsource, 3000);
+        }
+    }
+
+    function tim_eventsocket()
+    {
+        var host = window.location.host;
+        var socket = new WebSocket('ws://' + host + '/data?id=' + id + 'socket');
+        var cntsock = 0;
+        var tim_open_stop;
+        var reconnect = false;
+
+        function reconnect_sock()
+        {
+            if (reconnect) {
+                return;
+            }
+            reconnect = true;
+            clearInterval(tim_open_stop);
+            setTimeout(tim_eventsocket, 3000);
+        }
+
+        function tim_open()
+        {
+            cntsock++;
+            var str = "V16X socket ok tim " + cntsock;
+            var oMyBlob = new Blob([str], {type : 'text/plain'}); // the blob
+            socket.send(oMyBlob);
+        }
+
+        socket.onopen = function(e) {
+            var open_msg = "[open socket] Connection established";
+            console.log(open_msg);
+            globals.set_websock_response(open_msg);
+            console.log("Socket: sendingto server");
+            socket.send("V16X socket ok open ");
+            tim_open_stop = setInterval(tim_open, 3000);
+        }
+
+        function sock_procces(text) {
+            var datson = JSON.parse(text);
+            console.log("[message SOCKET]:", datson);
+            globals.set_websock_response(text);
+        }
+
+        socket.onmessage = function(event) {
+            event.data.text().then(text => sock_procces(text));
+        }
+
+        socket.onclose = function(event) {
+            if (event.wasClean) {
+                console.log("[close socket] Connection closed cleanly, code=", event.code, "reason=", event.reason);
+            } else {
+                // e.g. server process killed or network down
+                // event.code is usually 1006 in this case
+                if (event.code == 1006) {
+                    reconnect_sock();
+                }
+                console.log('[close socket] Connection died', event.code);
+                globals.set_websock_response('[close socket] Connection died ' + event.code);
+            }
+        }
+
+        socket.onerror = function(error) {
+            console.log("[error socket]", error.message);
+            globals.set_websock_response("[error socket] " + error.message);
+            reconnect_sock();
+        }
+    }
+
+    setTimeout(tim_eventsource, 5000);
+    setTimeout(tim_eventsocket, 5000);
+
+    </script>
+    {{{ SCRIPT }}}
+</body>
+</html>
