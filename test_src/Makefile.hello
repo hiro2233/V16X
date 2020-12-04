@@ -37,7 +37,7 @@ all: $(EXE)
 	@echo Build complete for $(EXE)
 
 $(EXE): $(OBJS)
-	$(shell mkdir -p ../htdocs/static && cp globals.js ../htdocs/static/ && cp favicon.ico ../htdocs/static/)
+	$(shell mkdir -p ../htdocs/static && cp globals.js ../htdocs/static/ && cp favicon.ico ../htdocs/)
 	$(CXX) -o ../htdocs/static/$@ ../build/*.o $(LIBS) $(LDFLAGS)
 
 clean:
