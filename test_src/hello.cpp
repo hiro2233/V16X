@@ -362,15 +362,23 @@ void display();
 extern "C" {
 bool get_drawing();
 
-void EXPORTFUNC set_websock_response(char resp[])
+void EXPORTFUNC set_websock_response(char resp[], int len)
 {
     memset(websock_response, 0, 128);
+    if (len > 0) {
+        memcpy(websock_response, resp, len);
+        return;
+    }
     sprintf(websock_response, "%s", resp);
 }
 
-void EXPORTFUNC set_stream_response(char resp[])
+void EXPORTFUNC set_stream_response(char resp[], int len)
 {
     memset(stream_response, 0, 128);
+    if (len > 0) {
+        memcpy(stream_response, resp, len);
+        return;
+    }
     sprintf(stream_response, "%s", resp);
 }
 

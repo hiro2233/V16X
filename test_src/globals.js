@@ -10,7 +10,7 @@ function stringToUint(str) {
     return new Uint8Array(uintArray);
 }
 
-function websock_response(text)
+function websock_response(text, len)
 {
     //var data = new TextEncoder("utf-8").encode(text);
     var data = stringToUint(text);
@@ -24,16 +24,13 @@ function websock_response(text)
     dataHeap.set(new Uint8Array(data.buffer));
 
     // Call function and get result
-    Module._set_websock_response(dataHeap.byteOffset);
-    //float_multiply_array(2, dataHeap.byteOffset, data.length);
-    //var result = new Float32Array(dataHeap.buffer, dataHeap.byteOffset, data.length);
+    Module._set_websock_response(dataHeap.byteOffset, len);
 
     // Free memory
     Module._free(dataHeap.byteOffset);
-    //Module._console_printf(txt.byteOffset);
 }
 
-function stream_response(text)
+function stream_response(text, len)
 {
     //var str = new TextEncoder("utf-8").encode(text);
     var data = stringToUint(text);
@@ -47,13 +44,11 @@ function stream_response(text)
     dataHeap.set(new Uint8Array(data.buffer));
 
     // Call function and get result
-    Module._set_stream_response(dataHeap.byteOffset);
-    //float_multiply_array(2, dataHeap.byteOffset, data.length);
+    Module._set_stream_response(dataHeap.byteOffset, len);
     var result = new Float32Array(dataHeap.buffer, dataHeap.byteOffset, data.length);
 
     // Free memory
     Module._free(dataHeap.byteOffset);
-    //Module._console_printf(txt.byteOffset);
 }
 
 const globals = {
