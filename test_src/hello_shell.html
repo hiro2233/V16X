@@ -554,7 +554,7 @@
             globals.set_websock_response(open_msg, open_msg.length);
             console.log("Socket: sendingto server");
             socket.send("V16X socket ok open ");
-            tim_open_stop = setInterval(tim_open, 3000);
+            tim_open_stop = setInterval(tim_open, 5000);
         }
 
         function sock_procces(text) {
@@ -590,8 +590,33 @@
         }
     }
 
-    setTimeout(tim_eventsource, 5000);
-    setTimeout(tim_eventsocket, 5000);
+    function tim_send_deepservice_ping()
+    {
+        globals.send_deepservice_ping();
+    }
+
+    var host = window.location.hostname;
+    var port = window.location.port;
+
+    function oninit()
+    {
+        tim_eventsource();
+        tim_eventsocket();
+        globals.connect_to_deepservice(host, port);
+        setInterval(tim_send_deepservice_ping, 5000);
+    }
+
+    var sds_cntfail = 0;
+    function onsend_sds_failed()
+    {
+        globals.connect_to_deepservice(host, port);
+        console.log('SDS send failed', sds_cntfail++);
+    }
+
+    var globals_callbacks = {
+        oninit: oninit,
+        on_send_sds_failed: onsend_sds_failed,
+    }
 
     </script>
     {{{ SCRIPT }}}

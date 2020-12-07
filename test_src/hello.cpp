@@ -13,6 +13,7 @@
 #include <iostream>
 #include <string>
 #include <fcntl.h>
+#include <pthread.h>
 
 #include "imgui.h"
 #include "imgui_impl_sdl.h"
@@ -29,60 +30,73 @@
 
 SDL_Surface* CreateRGBASurface(int width, int height);
 
-/*
+
 int default_port = 8080;
-int listenfd;
-int connfd;
+int connfd = -1;
+int retconn = -1;
 typedef struct sockaddr SA;
 
-int open_listenfd(int port)
-{
-    int optval = 1;
-    struct sockaddr_in serveraddr;
+extern "C" {
 
-    if ((listenfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
-        printf("open listen 1\n");
-        return -1;
+int EXPORTFUNC connect_to_deepservice(char ip[], int len, int port)
+{
+    struct sockaddr_in serveraddr;
+    char iptmp[len + 1];
+
+    memset(iptmp, 0, len + 1);
+    memcpy(iptmp, ip, len);
+
+    if ((connfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
+        printf("connect failed 1\n");
     }
+    fcntl(connfd, F_SETFL, O_NONBLOCK);
 
     memset(&serveraddr, 0, sizeof(serveraddr));
     serveraddr.sin_family = AF_INET;
     //inet_aton("127.0.0.1", &serveraddr.sin_addr.s_addr);
-    serveraddr.sin_addr.s_addr = inet_addr("127.0.0.1");
+    serveraddr.sin_addr.s_addr = inet_addr(iptmp);
     //serveraddr.sin_addr.s_addr = htonl(INADDR_ANY);
     serveraddr.sin_port = htons((unsigned short)port);
 
-    if (connect(listenfd, (SA *)&serveraddr, sizeof(serveraddr)) < 0)
+    if (connect(connfd, (SA *)&serveraddr, sizeof(serveraddr)) < 0)
     {
-        printf("open listen 3\n");
+        printf("connect failed 2 fd: %d\n", connfd);
     }
 
-    puts("Connected\n");
-    for(int i = 0; i < 1; ++i)
-    {
-    const char message[] = "asdasdasd";
-    if (write(listenfd, message, strlen(message)) < 0)
-    {
-        puts("Send failed");
-        return 1;
-    }
-    
-    char server_reply[256];
-    if (recv(listenfd, server_reply, 256, 0) < 0)
-    {
-        puts("recv failed");
-        break;
-    }
-    
-    puts("Server reply: ");
-    puts(server_reply);
-    }
-    
-    close(listenfd);
-    
-    return listenfd;
+    printf("Connected\n");
+    retconn = 1;
+    return retconn;
 }
-*/
+
+EM_JS(void, on_send_sds_failed, (), {
+    globals.on_send_sds_failed();
+});
+
+void EXPORTFUNC send_deepservice_ping()
+{
+    static int cnt_msg = 0;
+    const char message[] = "V16X Deep Service ping";
+    char server_reply[256] = {0};
+
+    if (write(connfd, message, strlen(message)) < 0)
+    {
+        printf("SDS send failed\n");
+        on_send_sds_failed();
+    }
+
+    if (read(connfd, server_reply, 256) < 0)
+    {
+        printf("SDS recv failed\n");
+        close(connfd);
+        return;
+    }
+
+    if (strlen(server_reply) > 0) {
+        printf("SDS reply %d: %s\n", cnt_msg++, server_reply);
+    }
+}
+
+}
 
 bool sw_internal = false;
 
