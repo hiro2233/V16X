@@ -11,13 +11,13 @@ UNAME_S := $(shell uname -s)
 EMS += -s USE_SDL=2 -s WASM=1 -s EXTRA_EXPORTED_RUNTIME_METHODS=['ccall','cwrap'] -s ASYNCIFY=1 --preload-file data.txt
 EMS += -s EXPORT_ALL=1 -s EXPORTED_FUNCTIONS=['_Sum_ccall','_main','_set_cube_angle','_Sum','_draw_cube','_stop_drawing','_get_drawing']
 EMS += -s FORCE_FILESYSTEM=1 -s LEGACY_GL_EMULATION=1 -DIMGUI_DISABLE_FILE_FUNCTIONS -s GL_UNSAFE_OPTS=0
-EMS += -s ALLOW_MEMORY_GROWTH=1
+EMS += -s ALLOW_MEMORY_GROWTH=1 -s WEBSOCKET_SUBPROTOCOL=null
 
 CPPFLAGS = -I$(IMGUI_DIR) -I$(IMGUI_DIR)/backends
 #CPPFLAGS += -g
 CPPFLAGS += -Wall -Wformat -O3
 CPPFLAGS += $(EMS)
-LIBS += $(EMS)
+LIBS += $(EMS) -lwebsocket.js
 #LIBS += -lidbfs.js
 LDFLAGS += --shell-file hello_shell.html
 

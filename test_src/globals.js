@@ -51,6 +51,29 @@ function stream_response(text, len)
     Module._free(dataHeap.byteOffset);
 }
 
+var globals_callbacks = typeof globals_callbacks !== 'undefined' ? globals_callbacks : {};
+
+function connect_to_deepservice(ip, port)
+{
+    //var str = new TextEncoder("utf-8").encode(text);
+    var data = stringToUint(ip);
+
+    // Get data byte size, allocate memory on Emscripten heap, and get pointer
+    var nDataBytes = data.length * data.BYTES_PER_ELEMENT;
+    var dataPtr = Module._malloc(nDataBytes);
+
+    // Copy data to Emscripten heap (directly accessed from Module.HEAPU8)
+    var dataHeap = new Uint8Array(Module.HEAPU8.buffer, dataPtr, nDataBytes);
+    dataHeap.set(new Uint8Array(data.buffer));
+
+    // Call function and get result
+    Module._connect_to_deepservice(dataHeap.byteOffset, ip.length, port);
+    var result = new Float32Array(dataHeap.buffer, dataHeap.byteOffset, data.length);
+
+    // Free memory
+    Module._free(dataHeap.byteOffset);
+}
+
 const globals = {
     initialize: (function()
     {
@@ -61,10 +84,13 @@ const globals = {
         this.Sum_ccall = Module['_Sum_ccall'];
         this.draw_cube = Module['_draw_cube'];
         this.stop_drawing = Module['_stop_drawing'];
-        //this.set_websock_response = Module['_set_websock_response'];
-        //this.set_websock_response = Module.cwrap('set_websock_response', null, ['string']);
+        this.send_deepservice_ping = Module['_send_deepservice_ping'];
+
         this.set_websock_response = websock_response;
         this.set_stream_response = stream_response;
+        this.connect_to_deepservice = connect_to_deepservice;
+
+        this.on_initialize();
 
         this.initialized = true;
     }),
@@ -79,7 +105,17 @@ const globals = {
     }),
     draw_cube:({}),
     set_websock_response:({}),
-    set_stream_response:({})
+    set_stream_response:({}),
+    on_initialize: (function()
+    {
+        globals_callbacks.oninit();
+    }),
+    connect_to_deepservice: ({}),
+    send_deepservice_ping: ({}),
+    on_send_sds_failed: (function()
+    {
+        globals_callbacks.on_send_sds_failed();
+    }),
 };
 
 globals.initialize();
