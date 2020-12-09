@@ -493,30 +493,30 @@
         evtSource.onopen = function() {
             var open_msg = "opened event";
             console.log(open_msg);
-            globals.set_stream_response(open_msg, open_msg.length);
+            globals.set_stream_response(open_msg);
         }
 
         evtSource.addEventListener("ping", function(e) {
             console.log("PING:",JSON.parse(e.data));
             var ping_msg = "PING: " + e.data;
-            globals.set_stream_response(ping_msg, ping_msg.length);
+            globals.set_stream_response(ping_msg);
         }, false);
 
         evtSource.addEventListener("pong", function(e) {
             console.log("PONG:",JSON.parse(e.data));
             var pong_msg = "PONG: " + e.data;
-            globals.set_stream_response(pong_msg, pong_msg.length);
+            globals.set_stream_response(pong_msg);
         }, false);
 
         evtSource.onmessage = function(e) {
             console.log("[message STREAM]:", JSON.parse(e.data));
-            globals.set_stream_response(e.data, e.data.length);
+            globals.set_stream_response(e.data);
         }
 
         evtSource.onerror = function(e) {
             var error_msg = "EventSource failed: " + e.type;
             console.log(error_msg);
-            globals.set_stream_response(error_msg, error_msg.length);
+            globals.set_stream_response(error_msg);
             evtSource.close();
             setTimeout(tim_eventsource, 3000);
         }
@@ -543,7 +543,7 @@
         function tim_open()
         {
             cntsock++;
-            var str = "V16X socket ok tim " + cntsock;
+            var str = new TextEncoder("utf-8").encode("V16X qstr=1&id=44&lon=11&cntsock=" + cntsock);
             var oMyBlob = new Blob([str], {type : 'text/plain'}); // the blob
             socket.send(oMyBlob);
         }
@@ -551,16 +551,16 @@
         socket.onopen = function(e) {
             var open_msg = "[open socket] Connection established";
             console.log(open_msg);
-            globals.set_websock_response(open_msg, open_msg.length);
+            globals.set_websock_response(open_msg);
             console.log("Socket: sendingto server");
-            socket.send("V16X socket ok open ");
+            socket.send("V16X qbin=1&data=" + stringToUint("id=44&lon=11&lat=323222"));
             tim_open_stop = setInterval(tim_open, 5000);
         }
 
         function sock_procces(text) {
             var datson = JSON.parse(text);
             console.log("[message SOCKET]:", datson);
-            globals.set_websock_response(text, text.length);
+            globals.set_websock_response(text);
         }
 
         socket.onmessage = function(event) {
@@ -578,14 +578,14 @@
                 }
                 var close_msg = '[close socket] Connection died ' + event.code;
                 console.log(close_msg);
-                globals.set_websock_response(close_msg, close_msg.length);
+                globals.set_websock_response(close_msg);
             }
         }
 
         socket.onerror = function(error) {
             var error_msg = "[error socket] " + error.message;
             console.log(error_msg, error_msg.length);
-            globals.set_websock_response(error_msg, error_msg.length);
+            globals.set_websock_response(error_msg);
             reconnect_sock();
         }
     }
@@ -597,7 +597,6 @@
 
     var host = window.location.hostname;
     var port = window.location.port;
-
     function oninit()
     {
         tim_eventsource();
