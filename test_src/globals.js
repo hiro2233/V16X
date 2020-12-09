@@ -1,50 +1,50 @@
 console.log("init globals external");
 
 function stringToUint(str) {
-    //var str = btoa(unescape(encodeURIComponent(str))),
-    charList = str.split(''),
-    uintArray = [];
+    //var str = btoa(unescape(encodeURIComponent(str)));
+    var charList = str.split('');
+    var uintArray = [];
     for (var i = 0; i < charList.length; i++) {
         uintArray.push(charList[i].charCodeAt(0));
     }
     return new Uint8Array(uintArray);
 }
 
-function websock_response(text, len)
+function websock_response(text)
 {
     //var data = new TextEncoder("utf-8").encode(text);
     var data = stringToUint(text);
 
-    // Get data byte size, allocate memory on Emscripten heap, and get pointer
+    // Get data byte size, allocate memory on the heap, and get pointer
     var nDataBytes = data.length * data.BYTES_PER_ELEMENT;
     var dataPtr = Module._malloc(nDataBytes);
 
-    // Copy data to Emscripten heap (directly accessed from Module.HEAPU8)
+    // Copy data to the heap (directly accessed from Module.HEAPU8)
     var dataHeap = new Uint8Array(Module.HEAPU8.buffer, dataPtr, nDataBytes);
     dataHeap.set(new Uint8Array(data.buffer));
 
     // Call function and get result
-    Module._set_websock_response(dataHeap.byteOffset, len);
+    Module._set_websock_response(dataHeap.byteOffset, text.length);
 
     // Free memory
     Module._free(dataHeap.byteOffset);
 }
 
-function stream_response(text, len)
+function stream_response(text)
 {
     //var str = new TextEncoder("utf-8").encode(text);
     var data = stringToUint(text);
 
-    // Get data byte size, allocate memory on Emscripten heap, and get pointer
+    // Get data byte size, allocate memory on heap, and get pointer
     var nDataBytes = data.length * data.BYTES_PER_ELEMENT;
     var dataPtr = Module._malloc(nDataBytes);
 
-    // Copy data to Emscripten heap (directly accessed from Module.HEAPU8)
+    // Copy data to the heap (directly accessed from Module.HEAPU8)
     var dataHeap = new Uint8Array(Module.HEAPU8.buffer, dataPtr, nDataBytes);
     dataHeap.set(new Uint8Array(data.buffer));
 
     // Call function and get result
-    Module._set_stream_response(dataHeap.byteOffset, len);
+    Module._set_stream_response(dataHeap.byteOffset, text.length);
     var result = new Float32Array(dataHeap.buffer, dataHeap.byteOffset, data.length);
 
     // Free memory
@@ -58,11 +58,11 @@ function connect_to_deepservice(ip, port)
     //var str = new TextEncoder("utf-8").encode(text);
     var data = stringToUint(ip);
 
-    // Get data byte size, allocate memory on Emscripten heap, and get pointer
+    // Get data byte size, allocate memory on the heap, and get pointer
     var nDataBytes = data.length * data.BYTES_PER_ELEMENT;
     var dataPtr = Module._malloc(nDataBytes);
 
-    // Copy data to Emscripten heap (directly accessed from Module.HEAPU8)
+    // Copy data to the heap (directly accessed from Module.HEAPU8)
     var dataHeap = new Uint8Array(Module.HEAPU8.buffer, dataPtr, nDataBytes);
     dataHeap.set(new Uint8Array(data.buffer));
 
