@@ -159,7 +159,7 @@ private:
 
     // add client to slot.
     void client_slot_add(netsocket_inf_t *cl);
-    void client_slot_delete(int clid);
+    void client_slot_delete(int clid_slot);
     bool poll_in(int fd, uint32_t timeout_ms);
     int parse_request(int fd, http_request_t *req);
     int parse_query(char *query, char delimiter, char setter, query_param_t *params, int max_params);
