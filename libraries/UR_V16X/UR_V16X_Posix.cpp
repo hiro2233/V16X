@@ -251,12 +251,12 @@ void UR_V16X_Posix::client_slot_add(netsocket_inf_t *cl)
 }
 
 /* Delete client from slot */
-void UR_V16X_Posix::client_slot_delete(int clid)
+void UR_V16X_Posix::client_slot_delete(int clid_slot)
 {
     pthread_mutex_lock(&clients_mutex);
     for (uint16_t i = 0; i < V16X_MAX_CLIENTS; ++i) {
         if (clients[i] != NULL) {
-            if (clients[i]->clid == clid) {
+            if (clients[i]->clid == clid_slot) {
                 clients[i] = NULL;
                 free(clients[i]);
                 break;
@@ -478,7 +478,8 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *clientaddr)
 #if V16X_DEBUG >= 3
             SHAL_SYSTEM::printf("length DATA: val1: %lu - val2: %lu\n", strlen(val1), strlen(val2));
 #endif // V16X_DEBUG
-            if (strcmp(val1, val2) == 0) {
+            int32_t lenval = strlen(val1) + strlen(val2);
+            if (strcmp(val1, val2) == 0 && lenval > 0) {
                 sprintf(msg, "DATA_URL=%lu&%s&%s", req.allsize + strlen(msg), "OK=1", data_parsed.data);
 #if V16X_DEBUG >= 3
                 SHAL_SYSTEM::printf("DATA_URL CMP TRUE getlen: %lu - msg: %s\n", req.end, msg);
@@ -501,6 +502,23 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *clientaddr)
             SHAL_SYSTEM::printf("\tMSG DATA: %s\n", msg);
 #endif // V16X_DEBUG
         }
+
+        if (strcmp(req.filename, "sds") == 0) {
+            query_param_t split_querystr[15] = {0};
+            int ret_params = parse_query(query_string, '&', '=', split_querystr, 15);
+
+            SHAL_SYSTEM::printf("Params GET count: %d query_string: %s filenametmp: %s\n", ret_params, query_string, filenametmp);
+            for (uint8_t i = 0; i < ret_params; i++) {
+                SHAL_SYSTEM::printf("idx: %d key: %s val: %s\n", i, split_querystr[i].key, split_querystr[i].val);
+            }
+            if (strstr(split_querystr[0].key, "qstr")) {
+                SHAL_SYSTEM::printf("SDS QSTR key: %s val: %s\n", split_querystr[0].key, split_querystr[0].val);
+            }
+            if (strstr(split_querystr[0].key, "qbin")) {
+                SHAL_SYSTEM::printf("SDS QBIN key: %s val: %s\n", split_querystr[0].key, split_querystr[0].val);
+            }
+        }
+
         log_access(status, clientaddr, &req);
     }
 
@@ -929,6 +947,25 @@ int UR_V16X_Posix::parse_request(int fd, http_request_t *req)
     netsocket_inf_t *client = _get_client(fd);
 #endif // V16X_DEBUG
     if (strstr(wsdec, "V16X")) {
+        _set_client_event_websocket(fd, true);
+        char header[10] = {0};
+        char query_str[MAX_BUFF] = {0};
+        query_param_t split_querystr[15] = {0};
+
+        sscanf(wsdec, "%s %s", header, query_str);
+        ret_params = parse_query(query_str, '&', '=', split_querystr, 15);
+
+        SHAL_SYSTEM::printf("SDS SOCKET Params GET count: %d query_str: %s\n", ret_params, query_str);
+        for (uint8_t i = 0; i < ret_params; i++) {
+            SHAL_SYSTEM::printf("idx: %d key: %s val: %s\n", i, split_querystr[i].key, split_querystr[i].val);
+        }
+        if (strstr(split_querystr[0].key, "qstr")) {
+            SHAL_SYSTEM::printf("SDS QSTR key: %s val: %s\n", split_querystr[0].key, split_querystr[0].val);
+        }
+        if (strstr(split_querystr[0].key, "qbin")) {
+            SHAL_SYSTEM::printf("SDS QBIN key: %s val: %s\n", split_querystr[0].key, split_querystr[0].val);
+        }
+
 #if V16X_DEBUG >= 1
         if (client != NULL) {
             SHAL_SYSTEM::printf("V16X METHOD msg: %s len: %d ( CLID: %d ) fd: %d Address:  %s:%d closed: %d\n\n", wsdec, len, client->clid, client->connfd, inet_ntoa(client->clientaddr.sin_addr), ntohs(client->clientaddr.sin_port), closed);
@@ -1381,7 +1418,9 @@ void UR_V16X_Posix::process_event_stream()
                     continue;
                 }
 
-                //clients[i]->evtwebsock_ping = false;
+                pthread_mutex_lock(&clients_mutex);
+                clients[i]->evtwebsock_ping = false;
+                pthread_mutex_unlock(&clients_mutex);
                 memset(msg, '\0', MAX_BUFF);
                 char buftmp[MAX_BUFF] = {0};
                 sprintf(buftmp, "{\"len\":%lu,\"clid\":\"%d\",\"fd\":%d}", sizeof(buftmp), client.clid, client.connfd);
