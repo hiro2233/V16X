@@ -43,6 +43,7 @@
 #include <stdbool.h>
 #include <atomic>
 #include <math.h>
+#include <netdb.h>
 
 #include <sys/socket.h>
 
@@ -191,4 +192,5 @@ private:
     int _encode_hybi(char const *src, size_t srclength, char *target, size_t targsize, unsigned int opcode);
     int _ws_b64_pton(const char * src, char * dst, int dstlen);
     int _ws_b64_ntop(const char * src, size_t srclen, char * dst, size_t dstlen);
+    int _get_ip_host(char *host, int len);
 };
