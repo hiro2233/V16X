@@ -88,6 +88,7 @@
 			<Add option="-std=c11" />
 			<Add option="-std=gnu++11" />
 			<Add option="-fpermissive" />
+			<Add option="-Wshadow" />
 			<Add option="-D__STDC_FORMAT_MACROS" />
 			<Add option="-DENABLE_SYSTEM_SHUTDOWN" />
 			<Add directory="libraries" />
