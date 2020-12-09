@@ -1601,3 +1601,68 @@ void UR_V16X_Posix::_get_client(TYPE_TRANSACTION_E typetr, netsocket_inf_t &clie
         }
     }
 }
+
+int UR_V16X_Posix::_get_ip_host(char *host, int len)
+{
+    struct addrinfo hints, *res;
+    int errcode;
+    char addrstr[100];
+    void *ptr;
+
+    memset(addrstr, 0, 100);
+    memset(&hints, 0, sizeof (hints));
+    hints.ai_family = AF_INET;
+    hints.ai_socktype = SOCK_STREAM;
+    hints.ai_flags |= AI_CANONNAME;
+
+    errcode = getaddrinfo(host, NULL, &hints, &res);
+    if (errcode != 0) {
+        printf("getaddrinfo failed!\n");
+        return -1;
+    }
+
+    printf("Host: %s\n", host);
+    while (res) {
+        inet_ntop(res->ai_family, res->ai_addr->sa_data, addrstr, 100);
+
+        switch (res->ai_family) {
+            case AF_INET:
+                ptr = &((struct sockaddr_in *)res->ai_addr)->sin_addr;
+                break;
+            case AF_INET6:
+                ptr = &((struct sockaddr_in6 *)res->ai_addr)->sin6_addr;
+                break;
+        }
+        inet_ntop(res->ai_family, ptr, addrstr, 100);
+        printf("IPv%d address: %s (%s)\n", res->ai_family == PF_INET6 ? 6 : 4, addrstr, res->ai_canonname);
+        res = res->ai_next;
+    }
+    //if (strstr(host, "localhost")) {
+        //sprintf(host, "%s", "127.0.0.1");
+        //return 0;
+    //}
+    memcpy(host, addrstr, len);
+
+	char hostbuffer[256];
+	char *IPbuffer;
+	struct hostent *host_entry;
+	int hostname;
+
+	// To retrieve hostname
+	hostname = gethostname(hostbuffer, sizeof(hostbuffer));
+	//checkHostName(hostname);
+
+	// To retrieve host information
+	host_entry = gethostbyname(host);
+	//checkHostEntry(host_entry);
+
+	// To convert an Internet network
+	// address into ASCII string
+	IPbuffer = inet_ntoa(*((struct in_addr*)
+						host_entry->h_addr_list[0]));
+
+	printf("Hostname: %s\n", hostbuffer);
+	printf("Host IP: %s\n", IPbuffer);
+
+    return 0;
+}
