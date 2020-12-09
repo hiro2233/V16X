@@ -32,8 +32,8 @@ SDL_Surface* CreateRGBASurface(int width, int height);
 
 
 int default_port = 8080;
-int connfd = -1;
-int retconn = -1;
+int connfd = 0;
+int retconn = 0;
 typedef struct sockaddr SA;
 
 extern "C" {
@@ -41,9 +41,10 @@ extern "C" {
 int EXPORTFUNC connect_to_deepservice(char ip[], int len, int port)
 {
     struct sockaddr_in serveraddr;
-    char iptmp[len + 1];
+    char *iptmp = new char[len + 1];
 
     memset(iptmp, 0, len + 1);
+    memset(&serveraddr, 0, sizeof(serveraddr));
     memcpy(iptmp, ip, len);
 
     if ((connfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
@@ -75,24 +76,23 @@ EM_JS(void, on_send_sds_failed, (), {
 void EXPORTFUNC send_deepservice_ping()
 {
     static int cnt_msg = 0;
-    const char message[] = "V16X Deep Service ping";
-    char server_reply[256] = {0};
+    const char message[] = "V16X qstr=1&ping=1";
+    char server_reply[1024] = {0};
 
-    if (write(connfd, message, strlen(message)) < 0)
-    {
-        printf("SDS send failed\n");
-        on_send_sds_failed();
-    }
-
-    if (read(connfd, server_reply, 256) < 0)
+    if (read(connfd, server_reply, 1024) < 0)
     {
         printf("SDS recv failed\n");
-        close(connfd);
-        return;
     }
 
     if (strlen(server_reply) > 0) {
         printf("SDS reply %d: %s\n", cnt_msg++, server_reply);
+    }
+
+    if (write(connfd, message, strlen(message)) < 0)
+    {
+        printf("SDS send failed\n");
+        close(connfd);
+        on_send_sds_failed();
     }
 }
 
@@ -378,6 +378,9 @@ bool get_drawing();
 
 void EXPORTFUNC set_websock_response(char resp[], int len)
 {
+    if (len > 128) {
+        len = 128;
+    }
     memset(websock_response, 0, 128);
     if (len > 0) {
         memcpy(websock_response, resp, len);
@@ -388,6 +391,9 @@ void EXPORTFUNC set_websock_response(char resp[], int len)
 
 void EXPORTFUNC set_stream_response(char resp[], int len)
 {
+    if (len > 128) {
+        len = 128;
+    }
     memset(stream_response, 0, 128);
     if (len > 0) {
         memcpy(stream_response, resp, len);
