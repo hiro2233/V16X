@@ -146,7 +146,7 @@ private:
     uint32_t clid = 10;
 
     static const mime_map_t mime_types[];
-    const char *default_mime_type = {"application/octet-stream"};
+    const char *default_mime_type = {"text/plain"};
 
     typedef struct sockaddr SA;
     data_parsed_t data_parsed;
