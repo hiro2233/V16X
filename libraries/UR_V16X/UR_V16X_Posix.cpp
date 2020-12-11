@@ -253,7 +253,7 @@ void UR_V16X_Posix::client_slot_add(netsocket_inf_t *cl)
 }
 
 /* Delete client from slot */
-void UR_V16X_Posix::client_slot_delete(int clid_slot)
+void UR_V16X_Posix::client_slot_delete(uint32_t clid_slot)
 {
     pthread_mutex_lock(&clients_mutex);
     for (uint16_t i = 0; i < V16X_MAX_CLIENTS; ++i) {
@@ -431,7 +431,7 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *clientaddr)
         if (strcmp(req.filename, "data") == 0) {
             status = 200;
             query_param_t params1[10] = {0};
-            int ret1 = 0;
+            uint32_t ret1 = 0;
             int lenquery1 = strlen(query_string);
             char query_temp1[lenquery1 + 1] = {0};
 
@@ -441,7 +441,7 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *clientaddr)
             }
 
             if (ret1 > 0) {
-                for (int i = 0; i < ret1; i++) {
+                for (uint32_t i = 0; i < ret1; i++) {
                     char qmsg[MAX_BUFF] = {0};
                     sprintf(qmsg, "KEY 1: [ %s ]%-3.s\t-\tVAL: [ %s ]", params1[i].key, "", params1[i].val);
                     if (strcmp(params1[i].key,"id") == 0) {
@@ -457,7 +457,7 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *clientaddr)
 #endif // V16X_DEBUG
 
             query_param_t params2[10] = {0};
-            int ret2 = 0;
+            uint32_t ret2 = 0;
             int lenquery2 = strlen(data_parsed.data);
             char query_temp2[lenquery2 + 1] = {0};
 
@@ -467,7 +467,7 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *clientaddr)
             }
 
             if (ret2 > 0) {
-                for (int i = 0; i < ret2; i++) {
+                for (uint32_t i = 0; i < ret2; i++) {
                     char qmsg[MAX_BUFF] = {0};
                     sprintf(qmsg, "KEY 2: [ %s ]%-3.s\t-\tVAL: [ %s ]", params2[i].key, "", params2[i].val);
                     if (strcmp(params2[i].key,"id") == 0) {
@@ -510,7 +510,7 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *clientaddr)
 
         if (strcmp(req.filename, "sds") == 0) {
             query_param_t split_querystr[15] = {0};
-            int ret_params = deepsrv.parse_query(query_string, '&', '=', split_querystr, 15);
+            uint32_t ret_params = deepsrv.parse_query(query_string, '&', '=', split_querystr, 15);
 
             SHAL_SYSTEM::printf("\nSDS QUERY Params GET count: %d query_string: %s filenametmp: %s\n", ret_params, query_string, filenametmp);
             deepsrv.print_query_params(split_querystr, ret_params);
@@ -545,7 +545,7 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *clientaddr)
 
             if (cgi_query) {
                 query_param_t params3[10] = {0};
-                int ret3 = 0;
+                uint32_t ret3 = 0;
                 int lenquery3 = strlen(query_string);
                 char query_temp3[lenquery3 + 1] = {0};
                 if (lenquery3 > 0) {
@@ -554,7 +554,7 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *clientaddr)
                 }
 
                 if (ret3 > 0) {
-                    for (int i = 0; i < ret3; i++) {
+                    for (uint32_t i = 0; i < ret3; i++) {
                         char qmsg[MAX_BUFF] = {0};
                         sprintf(qmsg, "KEY DATA: [ %s ]%-5.s\t- VAL: [ %s ]", params3[i].key, "", params3[i].val);
 #if V16X_DEBUG >= 3
@@ -841,7 +841,7 @@ int UR_V16X_Posix::_decode_hybi(char *src, size_t srclength, char *target, int t
     return target_offset;
 }
 
-int UR_V16X_Posix::parse_request(int fd, http_request_t *req)
+uint8_t UR_V16X_Posix::parse_request(int fd, http_request_t *req)
 {
     data_io_t dat_io;
     char buf[MAX_BUFF] = {0};
@@ -861,8 +861,8 @@ int UR_V16X_Posix::parse_request(int fd, http_request_t *req)
     }
 
     query_param_t split_params[15] = {0};
-    int ret_params = deepsrv.parse_query(buf, '\n', 0, split_params, 15);
-    int idx_param;
+    uint32_t ret_params = deepsrv.parse_query(buf, '\n', 0, split_params, 15);
+    uint32_t idx_param;
 
     if (deepsrv.has_key(split_params, 1, ret_params, "event-stream", idx_param)) {
         char bufevt[MAX_BUFF] = {0};

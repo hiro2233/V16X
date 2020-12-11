@@ -32,10 +32,10 @@ public:
     UR_V16X_DeepService();
     virtual ~UR_V16X_DeepService(void) {};
 
-    void print_query_params(const query_param_t *qparam, int cnt);
-    int parse_query(const char *query, char delimiter, char setter, query_param_t *params, int max_params);
-    bool has_key(const query_param_t *params, int offset, int cnt, const char *strkey, int &idx);
-    int destroy_qparams(query_param_t *params, int cnt);
+    void print_query_params(const query_param_t *qparam, uint32_t cnt);
+    uint32_t parse_query(const char *query, char delimiter, char setter, query_param_t *params, uint32_t max_params);
+    bool has_key(const query_param_t *params, uint32_t offset, uint32_t cnt, const char *strkey, uint32_t &idx);
+    uint32_t destroy_qparams(query_param_t *params, uint32_t cnt);
 
 private:
 
