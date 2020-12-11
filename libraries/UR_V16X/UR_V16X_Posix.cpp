@@ -18,6 +18,8 @@
 
 #include "UR_V16X_Posix.h"
 
+#include <sys/mman.h>
+
 #include <vector>
 #include <string>
 
@@ -380,6 +382,7 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *clientaddr)
     char querytmp[MAX_BUFF] = {0};
     int cgi_query = 0;
     char *query_string = nullptr;
+    UR_V16X_DeepService deepsrv;
 
     memset(&req, 0, sizeof(http_request_t));
 #if V16X_DEBUG >= 3
@@ -427,14 +430,14 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *clientaddr)
         char msg[MAX_BUFF] = {0};
         if (strcmp(req.filename, "data") == 0) {
             status = 200;
-            query_param_t params1[10];
+            query_param_t params1[10] = {0};
             int ret1 = 0;
             int lenquery1 = strlen(query_string);
             char query_temp1[lenquery1 + 1] = {0};
 
             if (lenquery1 > 0) {
                 memcpy(query_temp1, query_string, lenquery1 + 1);
-                ret1 = parse_query(query_temp1,'&', '=', params1, 10);
+                ret1 = deepsrv.parse_query(query_temp1,'&', '=', params1, 10);
             }
 
             if (ret1 > 0) {
@@ -453,14 +456,14 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *clientaddr)
             SHAL_SYSTEM::printf("\tDATA PARSING STORED ////////  %s\n", data_parsed.data);
 #endif // V16X_DEBUG
 
-            query_param_t params2[10];
+            query_param_t params2[10] = {0};
             int ret2 = 0;
             int lenquery2 = strlen(data_parsed.data);
             char query_temp2[lenquery2 + 1] = {0};
 
             if (lenquery2 > 0) {
                 memcpy(query_temp2, data_parsed.data, lenquery2 + 1);
-                ret2 = parse_query(query_temp2,'&', '=', params2, 10);
+                ret2 = deepsrv.parse_query(query_temp2,'&', '=', params2, 10);
             }
 
             if (ret2 > 0) {
@@ -494,6 +497,8 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *clientaddr)
 #endif // V16X_DEBUG
                 handle_message_outhttp(fd, msg);
             }
+            deepsrv.destroy_qparams(params1, ret1);
+            deepsrv.destroy_qparams(params2, ret2);
 
             return ret;
         } else {
@@ -505,18 +510,13 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *clientaddr)
 
         if (strcmp(req.filename, "sds") == 0) {
             query_param_t split_querystr[15] = {0};
-            int ret_params = parse_query(query_string, '&', '=', split_querystr, 15);
+            int ret_params = deepsrv.parse_query(query_string, '&', '=', split_querystr, 15);
 
-            SHAL_SYSTEM::printf("Params GET count: %d query_string: %s filenametmp: %s\n", ret_params, query_string, filenametmp);
-            for (uint8_t i = 0; i < ret_params; i++) {
-                SHAL_SYSTEM::printf("idx: %d key: %s val: %s\n", i, split_querystr[i].key, split_querystr[i].val);
-            }
-            if (strstr(split_querystr[0].key, "qstr")) {
-                SHAL_SYSTEM::printf("SDS QSTR key: %s val: %s\n", split_querystr[0].key, split_querystr[0].val);
-            }
-            if (strstr(split_querystr[0].key, "qbin")) {
-                SHAL_SYSTEM::printf("SDS QBIN key: %s val: %s\n", split_querystr[0].key, split_querystr[0].val);
-            }
+            SHAL_SYSTEM::printf("\nSDS QUERY Params GET count: %d query_string: %s filenametmp: %s\n", ret_params, query_string, filenametmp);
+            deepsrv.print_query_params(split_querystr, ret_params);
+            deepsrv.destroy_qparams(split_querystr, ret_params);
+            sprintf(msg, "%s", "sds ok");
+            handle_message_outhttp(fd, msg);
         }
 
         log_access(status, clientaddr, &req);
@@ -543,13 +543,13 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *clientaddr)
             serve_static(fd, ffd, clientaddr, &req, sbuf.st_size);
 
             if (cgi_query) {
-                query_param_t params3[10];
+                query_param_t params3[10] = {0};
                 int ret3 = 0;
                 int lenquery3 = strlen(query_string);
                 char query_temp3[lenquery3 + 1] = {0};
                 if (lenquery3 > 0) {
                     memcpy(query_temp3, query_string, lenquery3 + 1);
-                    ret3 = parse_query(query_temp3,'&', '=', params3, 10);
+                    ret3 = deepsrv.parse_query(query_temp3,'&', '=', params3, 10);
                 }
 
                 if (ret3 > 0) {
@@ -568,6 +568,7 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *clientaddr)
 #if V16X_DEBUG >= 3
                 SHAL_SYSTEM::printf("\tMSG STORED: %s\n", msg);
 #endif // V16X_DEBUG
+                deepsrv.destroy_qparams(params3, ret3);
             }
         } else if(S_ISDIR(sbuf.st_mode)) {
             status = 200;
@@ -848,6 +849,7 @@ int UR_V16X_Posix::parse_request(int fd, http_request_t *req)
     req->offset = 0;
     req->end = 0;
     int closed = 0;
+    UR_V16X_DeepService deepsrv;
 
     memset(req->filename, 0, MAX_BUFF);
     io_data_init(&dat_io, fd);
@@ -857,78 +859,78 @@ int UR_V16X_Posix::parse_request(int fd, http_request_t *req)
         return closed;
     }
 
-    query_param_t split_params[15];
-    int ret_params = parse_query(buf, '\n', 0, split_params, 15);
+    query_param_t split_params[15] = {0};
+    int ret_params = deepsrv.parse_query(buf, '\n', 0, split_params, 15);
+    int idx_param;
 
-    for (uint8_t i = 1; i < ret_params; i++) {
-        if (strlen(split_params[i].key)  < 2) {
-            continue;
-        }
-
-        if (strstr(split_params[i].key, "event-stream")) {
-            char bufevt[MAX_BUFF] = {0};
-            _set_client_event_stream(fd, true);
-            sprintf(bufevt, "HTTP/1.1 %d %s\r\n", 200, "OK");
-            sprintf(bufevt + strlen(bufevt), "Server:%s\r\n", SERVER_VERSION);
-            sprintf(bufevt + strlen(bufevt), "Access-Control-Allow-Origin:%s\r\n", "*");
-            sprintf(bufevt + strlen(bufevt), "Cache-Control:no-cache\r\n");
-            sprintf(bufevt + strlen(bufevt), "%s", "Content-Type:text/event-stream\r\n");
-            sprintf(bufevt + strlen(bufevt), "Date:%s\r\n\r\n", SHAL_SYSTEM::get_date());
-            writen(fd, bufevt, strlen(bufevt));
-            SHAL_SYSTEM::printf("\n++++++++Event stream parsed!++++++++\n\n");
-            return closed;
-        }
-
-        if (strstr(split_params[i].key, "WebSocket-Key")) {
-            _set_client_event_websocket(fd, true);
-            char bufevt[MAX_BUFF] = {0};
-            char digest[MAX_BUFF] = {0};
-            char b64enc[MAX_BUFF] = {0};
-            char field[MAX_BUFF] = {0};
-            char fldval[MAX_BUFF] = {0};
-
-            sscanf(split_params[i].key, "%s %s", field, fldval);
-            sprintf(fldval + strlen(fldval), "%s", MAGIC_WEBSOCKET_KEY);
-
-            SHA_CTX shactx;
-            SHA1_Init(&shactx);
-            SHA1_Update(&shactx, (const unsigned char*)fldval, strlen(fldval));
-            SHA1_Final((unsigned char*)digest, &shactx);
-
-            _ws_b64_ntop(digest, strlen(digest), b64enc, MAX_BUFF);
-
-            SHAL_SYSTEM::printf("\n++++++++Web Socket parsed!++++++++\n");
-#if V16X_DEBUG >= 1
-            SHAL_SYSTEM::printf("\nfldval: %s++++++++\n", fldval);
-            SHAL_SYSTEM::printf("b64: %s b64enc_len: %lu digest_len: %lu\n", b64enc, strlen(b64enc), strlen(digest));
-#endif // V16X_DEBUG
-            sprintf(bufevt, "HTTP/1.1 %d Switching Protocols\r\n", 101);
-            sprintf(bufevt + strlen(bufevt), "Server:%s\r\n", SERVER_VERSION);
-            sprintf(bufevt + strlen(bufevt), "Connection:%s\r\n", "Upgrade");
-            sprintf(bufevt + strlen(bufevt), "Access-Control-Allow-Origin:%s\r\n", "*");
-            sprintf(bufevt + strlen(bufevt), "%s", "Upgrade:websocket\r\n");
-            sprintf(bufevt + strlen(bufevt), "Date:%s\r\n", SHAL_SYSTEM::get_date());
-            sprintf(bufevt + strlen(bufevt), "Sec-WebSocket-Accept:%s\r\n\r\n", b64enc);
-            writen(fd, bufevt, strlen(bufevt));
-
-#if V16X_DEBUG >= 99
-            SHAL_SYSTEM::printf("digest: ");
-            for (uint16_t i = 0; i < strlen((char*)digest); i++) {
-                SHAL_SYSTEM::printf("0x%2x ", (uint8_t)digest[i]);
-            }
-            SHAL_SYSTEM::printf("\n\n");
-#endif
-            return  closed;
-        }
-
-        if (strstr(split_params[i].key, "Range")) {
-            int64_t offset;
-            char field[MAX_BUFF] = {0};
-            sscanf(split_params[i].key,"%s bytes=%lu-", field, &offset);
-            req->offset = offset;
-        }
+    if (deepsrv.has_key(split_params, 1, ret_params, "event-stream", idx_param)) {
+        char bufevt[MAX_BUFF] = {0};
+        _set_client_event_stream(fd, true);
+        sprintf(bufevt, "HTTP/1.1 %d %s\r\n", 200, "OK");
+        sprintf(bufevt + strlen(bufevt), "Server:%s\r\n", SERVER_VERSION);
+        sprintf(bufevt + strlen(bufevt), "Access-Control-Allow-Origin:%s\r\n", "*");
+        sprintf(bufevt + strlen(bufevt), "Cache-Control:no-cache\r\n");
+        sprintf(bufevt + strlen(bufevt), "%s", "Content-Type:text/event-stream\r\n");
+        sprintf(bufevt + strlen(bufevt), "Date:%s\r\n\r\n", SHAL_SYSTEM::get_date());
+        writen(fd, bufevt, strlen(bufevt));
+        SHAL_SYSTEM::printf("\n++++++++Event stream parsed!++++++++\n\n");
+        req->filename[0] = '\0';
+        return closed;
     }
 
+    if (deepsrv.has_key(split_params, 1, ret_params, "WebSocket-Key", idx_param)) {
+        _set_client_event_websocket(fd, true);
+        char bufevt[MAX_BUFF] = {0};
+        char digest[MAX_BUFF] = {0};
+        char b64enc[MAX_BUFF] = {0};
+        char field[MAX_BUFF] = {0};
+        char fldval[MAX_BUFF] = {0};
+
+        sscanf(split_params[idx_param].key, "%s %s", field, fldval);
+        //SHAL_SYSTEM::printf("field [ %s ] fldval: [ %s ] key: [ %s ]\n", field, fldval, split_params[idx_param].key);
+
+        sprintf(fldval + strlen(fldval), "%s", MAGIC_WEBSOCKET_KEY);
+
+        SHA_CTX shactx;
+        SHA1_Init(&shactx);
+        SHA1_Update(&shactx, (const unsigned char*)fldval, strlen(fldval));
+        SHA1_Final((unsigned char*)digest, &shactx);
+
+        _ws_b64_ntop(digest, strlen(digest), b64enc, MAX_BUFF);
+
+        SHAL_SYSTEM::printf("\n++++++++Web Socket parsed!++++++++\n");
+#if V16X_DEBUG >= 1
+        SHAL_SYSTEM::printf("\nfldval: %s++++++++\n", fldval);
+        SHAL_SYSTEM::printf("b64: %s b64enc_len: %lu digest_len: %lu\n", b64enc, strlen(b64enc), strlen(digest));
+#endif // V16X_DEBUG
+        sprintf(bufevt, "HTTP/1.1 %d Switching Protocols\r\n", 101);
+        sprintf(bufevt + strlen(bufevt), "Server:%s\r\n", SERVER_VERSION);
+        sprintf(bufevt + strlen(bufevt), "Connection:%s\r\n", "Upgrade");
+        sprintf(bufevt + strlen(bufevt), "Access-Control-Allow-Origin:%s\r\n", "*");
+        sprintf(bufevt + strlen(bufevt), "%s", "Upgrade:websocket\r\n");
+        sprintf(bufevt + strlen(bufevt), "Date:%s\r\n", SHAL_SYSTEM::get_date());
+        sprintf(bufevt + strlen(bufevt), "Sec-WebSocket-Accept:%s\r\n\r\n", b64enc);
+        writen(fd, bufevt, strlen(bufevt));
+
+#if V16X_DEBUG >= 99
+        SHAL_SYSTEM::printf("digest: ");
+        for (uint16_t i = 0; i < strlen((char*)digest); i++) {
+            SHAL_SYSTEM::printf("0x%2x ", (uint8_t)digest[i]);
+        }
+        SHAL_SYSTEM::printf("\n\n");
+#endif
+        req->filename[0] = '\0';
+        return  closed;
+    }
+
+    if (deepsrv.has_key(split_params, 1, ret_params, "Range", idx_param)) {
+        int64_t offset;
+        char field[MAX_BUFF] = {0};
+        sscanf(split_params[idx_param].key,"%s bytes=%lu-", field, &offset);
+        req->offset = offset;
+    }
+
+    deepsrv.destroy_qparams(split_params, ret_params);
     sscanf(buf, "%s %s", method, uri);
 
     if (closed) {
@@ -939,8 +941,10 @@ int UR_V16X_Posix::parse_request(int fd, http_request_t *req)
     char wsdec[MAX_BUFF] = {0};
     unsigned int opcode, left;
 
+    int len = 0;
+
     memcpy(buftmp, buf, dat_io.io_cnt);
-    int len = _decode_hybi(buftmp, dat_io.io_cnt, wsdec, MAX_BUFF, &opcode, &left);
+    len = _decode_hybi(buftmp, dat_io.io_cnt, wsdec, MAX_BUFF, &opcode, &left);
     (void)len;
 
 #if V16X_DEBUG >= 1
@@ -953,18 +957,11 @@ int UR_V16X_Posix::parse_request(int fd, http_request_t *req)
         query_param_t split_querystr[15] = {0};
 
         sscanf(wsdec, "%s %s", header, query_str);
-        ret_params = parse_query(query_str, '&', '=', split_querystr, 15);
+        ret_params = deepsrv.parse_query(query_str, '&', '=', split_querystr, 15);
 
-        SHAL_SYSTEM::printf("SDS SOCKET Params GET count: %d query_str: %s\n", ret_params, query_str);
-        for (uint8_t i = 0; i < ret_params; i++) {
-            SHAL_SYSTEM::printf("idx: %d key: %s val: %s\n", i, split_querystr[i].key, split_querystr[i].val);
-        }
-        if (strstr(split_querystr[0].key, "qstr")) {
-            SHAL_SYSTEM::printf("SDS QSTR key: %s val: %s\n", split_querystr[0].key, split_querystr[0].val);
-        }
-        if (strstr(split_querystr[0].key, "qbin")) {
-            SHAL_SYSTEM::printf("SDS QBIN key: %s val: %s\n", split_querystr[0].key, split_querystr[0].val);
-        }
+        SHAL_SYSTEM::printf("\nSDS SOCKET Params GET count: %d query_str: %s\n", ret_params, query_str);
+        deepsrv.print_query_params(split_querystr, ret_params);
+        deepsrv.destroy_qparams(split_querystr, ret_params);
 
 #if V16X_DEBUG >= 1
         if (client != NULL) {
@@ -985,9 +982,8 @@ int UR_V16X_Posix::parse_request(int fd, http_request_t *req)
             SHAL_SYSTEM::printf("NO GET METHOD ( CLID: %d ) fd: %d Address:  %s:%d closed: %d\n\n", client->clid, client->connfd, inet_ntoa(client->clientaddr.sin_addr), ntohs(client->clientaddr.sin_port), closed);
         }
 #endif // V16X_DEBUG
+        closed = 1;
         return closed;
-    } else if (strstr(method, "GET")) {
-        _set_client_method_get(fd, true);
     }
 
     req->allsize = dat_io.io_cnt;
@@ -1016,45 +1012,6 @@ int UR_V16X_Posix::parse_request(int fd, http_request_t *req)
     return closed;
 }
 
-int UR_V16X_Posix::parse_query(char *query, char delimiter, char setter, query_param_t *params, int max_params)
-{
-    int i = 0;
-
-    if (NULL == query || '\0' == *query) {
-        return -1;
-    }
-
-    params[i++].key = query;
-    while (i < max_params && NULL != (query = strchr(query, delimiter))) {
-        *query = '\0';
-        params[i].key = ++query;
-        params[i].val = NULL;
-
-        /* Go back and split previous param */
-        if (i > 0 && setter != 0) {
-            if ((params[i - 1].val = strchr(params[i - 1].key, setter)) != NULL) {
-                *(params[i - 1].val)++ = '\0';
-                char * pchar = NULL;
-                pchar = strtok(params[i-1].val," ");
-                while (pchar != NULL) {
-                    pchar = strtok(NULL, " ");
-                }
-                params[i].val = pchar;
-            }
-        }
-        i++;
-    }
-
-    if (setter != 0) {
-        /* Go back and split last param */
-        if ((params[i - 1].val = strchr(params[i - 1].key, setter)) != NULL) {
-            *(params[i - 1].val)++ = '\0';
-        }
-    }
-
-    return i;
-}
-
 void UR_V16X_Posix::handle_message_outhttp(int fd, char *longmsg)
 {
     char buf[MAX_BUFF] = {0};
@@ -1074,9 +1031,9 @@ void UR_V16X_Posix::handle_message_outhttp(int fd, char *longmsg)
 
 void UR_V16X_Posix::log_access(int status, struct sockaddr_in *c_addr, http_request_t *req)
 {
+#if V16X_DEBUG >= 3
     char filetmp[MAX_BUFF] = {0};
     memcpy(filetmp, req->filename, sizeof(req->filename));
-#if V16X_DEBUG >= 3
     SHAL_SYSTEM::printf("---[ LOGACCESS %s:%d Status:%d - %s ]---\n\n", inet_ntoa(c_addr->sin_addr), ntohs(c_addr->sin_port), status, filetmp);
 #endif
 }
@@ -1101,6 +1058,7 @@ void UR_V16X_Posix::client_error(int fd, int status, const char *msg, const char
     writen(fd, buf, strlen(buf));
     sprintf(buf, "%s", longmsgtmp);
     writen(fd, buf, strlen(buf));
+    close(fd);
 }
 
 void UR_V16X_Posix::serve_static(int out_fd, int in_fd, struct sockaddr_in *c_addr, http_request_t *req, size_t total_size)
