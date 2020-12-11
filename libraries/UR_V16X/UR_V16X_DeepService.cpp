@@ -4,9 +4,9 @@ UR_V16X_DeepService::UR_V16X_DeepService()
 {
 }
 
-void UR_V16X_DeepService::print_query_params(const query_param_t *qparam, int cnt)
+void UR_V16X_DeepService::print_query_params(const query_param_t *qparam, uint32_t cnt)
 {
-    int idx_param = 0;
+    uint32_t idx_param = 0;
     if (has_key(qparam, 0, cnt, "qstr", idx_param)) {
         SHAL_SYSTEM::printf("SDS QSTR key: %s val: %s idx: %d\n", qparam[idx_param].key, qparam[idx_param].val, idx_param);
     }
@@ -23,10 +23,10 @@ void UR_V16X_DeepService::print_query_params(const query_param_t *qparam, int cn
     SHAL_SYSTEM::printf("----------------------------------\n");
 }
 
-int UR_V16X_DeepService::parse_query(const char *query, char delimiter, char setter, query_param_t *params, int max_params)
+uint32_t UR_V16X_DeepService::parse_query(const char *query, char delimiter, char setter, query_param_t *params, uint32_t max_params)
 {
-    int i = 0;
-    int idxcnt = 0;
+    uint32_t i = 0;
+    uint32_t idxcnt = 0;
     char querytmp[strlen(query) + 1] = {0};
     char *pch;
     char delimset[2] = {delimiter, setter};
@@ -70,7 +70,7 @@ int UR_V16X_DeepService::parse_query(const char *query, char delimiter, char set
     return idxcnt;
 }
 
-bool UR_V16X_DeepService::has_key(const query_param_t *params, int offset, int cnt, const char *strkey, int &idx)
+bool UR_V16X_DeepService::has_key(const query_param_t *params, uint32_t offset, uint32_t cnt, const char *strkey, uint32_t &idx)
 {
     bool ret = false;
     for (uint8_t i = offset; i < cnt; i++) {
@@ -91,7 +91,7 @@ bool UR_V16X_DeepService::has_key(const query_param_t *params, int offset, int c
     return ret;
 }
 
-int UR_V16X_DeepService::destroy_qparams(query_param_t *params, int cnt)
+uint32_t UR_V16X_DeepService::destroy_qparams(query_param_t *params, uint32_t cnt)
 {
     uint8_t i;
     for (i = 0; i < cnt; i++) {

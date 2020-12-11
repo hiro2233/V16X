@@ -110,7 +110,7 @@ public:
     typedef struct __netsocket_inf_t {
         struct sockaddr_in clientaddr;
         int connfd;
-        int clid;
+        uint32_t clid;
         bool is_attached;
         int sending;
         bool event_stream;
@@ -142,8 +142,8 @@ private:
 
     netsocket_inf_t *clients[V16X_MAX_CLIENTS];
 
-    std::atomic<unsigned int> cli_count;
-    int clid = 10;
+    std::atomic<uint32_t> cli_count;
+    uint32_t clid = 10;
 
     static const mime_map_t mime_types[];
     const char *default_mime_type = {"application/octet-stream"};
@@ -156,9 +156,9 @@ private:
 
     // add client to slot.
     void client_slot_add(netsocket_inf_t *cl);
-    void client_slot_delete(int clid_slot);
+    void client_slot_delete(uint32_t clid_slot);
     bool poll_in(int fd, uint32_t timeout_ms);
-    int parse_request(int fd, http_request_t *req);
+    uint8_t parse_request(int fd, http_request_t *req);
     void handle_message_outhttp(int fd, char *longmsg);
     void log_access(int status, struct sockaddr_in *c_addr, http_request_t *req);
     void client_error(int fd, int status, const char *msg, const char *longmsg);
