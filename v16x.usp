@@ -102,6 +102,8 @@
 		<Unit filename="app/v16x_server.h" />
 		<Unit filename="libraries/UR_V16X/UR_V16X.cpp" />
 		<Unit filename="libraries/UR_V16X/UR_V16X.h" />
+		<Unit filename="libraries/UR_V16X/UR_V16X_DeepService.cpp" />
+		<Unit filename="libraries/UR_V16X/UR_V16X_DeepService.h" />
 		<Unit filename="libraries/UR_V16X/UR_V16X_Driver.cpp" />
 		<Unit filename="libraries/UR_V16X/UR_V16X_Driver.h" />
 		<Unit filename="libraries/UR_V16X/UR_V16X_Posix.cpp" />
