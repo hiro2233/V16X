@@ -517,6 +517,7 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *clientaddr)
             deepsrv.destroy_qparams(split_querystr, ret_params);
             sprintf(msg, "%s", "sds ok");
             handle_message_outhttp(fd, msg);
+            return ret;
         }
 
         log_access(status, clientaddr, &req);
