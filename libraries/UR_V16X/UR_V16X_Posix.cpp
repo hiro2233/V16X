@@ -63,6 +63,7 @@ const UR_V16X_Posix::mime_map_t UR_V16X_Posix::mime_types[] = {
     {".mp3", "audio/mpeg"},
     {".wasm", "application/wasm"},
     {".m3u", "audio/x-mpequrl"},
+    {".geojson", "application/geo+json"},
     {NULL, NULL},
 };
 
