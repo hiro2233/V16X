@@ -19,6 +19,7 @@
 #pragma once
 
 #include "UR_V16X_Driver.h"
+#include "UR_V16X_DeepService.h"
 
 #include <stdarg.h>
 #include <arpa/inet.h>
@@ -106,11 +107,6 @@ public:
         char data[MAX_BUFF];
     } data_parsed_t;
 
-    typedef struct __query_param_t {
-        char *key;
-        char *val;
-    } query_param_t;
-
     typedef struct __netsocket_inf_t {
         struct sockaddr_in clientaddr;
         int connfd;
@@ -163,7 +159,6 @@ private:
     void client_slot_delete(int clid_slot);
     bool poll_in(int fd, uint32_t timeout_ms);
     int parse_request(int fd, http_request_t *req);
-    int parse_query(char *query, char delimiter, char setter, query_param_t *params, int max_params);
     void handle_message_outhttp(int fd, char *longmsg);
     void log_access(int status, struct sockaddr_in *c_addr, http_request_t *req);
     void client_error(int fd, int status, const char *msg, const char *longmsg);
