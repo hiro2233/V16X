@@ -1,5 +1,7 @@
 #include "UR_V16X_DeepService.h"
 
+#include <sys/stat.h>
+
 const UR_V16X_DeepService::cmd_lst_t UR_V16X_DeepService::cmd_lst[] = {
     {"ls"},
     {"cat"},
@@ -169,16 +171,23 @@ bool UR_V16X_DeepService::execute_qstr(const query_param_t *qparams, uint32_t cn
         // Prevents absolute path operations.
         char *vargs = valargstmp;
         while (*vargs != 0) {
-            vargs++;
             if (*vargs == '/') {
                 *vargs = ' ';
             }
+            vargs++;
         }
 
         char cmdtmp[strlen(valtmp) + strlen(valargstmp)];
 
-        sprintf(cmdtmp, "%s %s", valtmp, valargstmp);
+        int retmkdir = mkdir("v16xtmp", 0775);
+        int retcd = chdir("v16xtmp");
+        (void)retmkdir;
+
+        sprintf(cmdtmp, "%s %s 2>&1", valtmp, valargstmp);
         fd = popen(cmdtmp, "r");
+
+        retcd = chdir("..");
+        (void)retcd;
 
         if (!fd) {
             return false;
