@@ -29,6 +29,10 @@ class UR_V16X_DeepService
 {
 public:
 
+    typedef struct __cmd_lst_t {
+        const char *cmd;
+    } cmd_lst_t;
+
     UR_V16X_DeepService();
     virtual ~UR_V16X_DeepService(void) {};
 
@@ -46,7 +50,9 @@ public:
 
 private:
 
+    static const cmd_lst_t cmd_lst[];
     // Execute query params string type already parsed.
     bool execute_qstr(const query_param_t *qparams, uint32_t cnt, char **retmsg);
-
+    // Verify if command exist on the list.
+    bool cmd_avail(char *pcmd);
 };
