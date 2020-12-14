@@ -1,5 +1,12 @@
 #include "UR_V16X_DeepService.h"
 
+const UR_V16X_DeepService::cmd_lst_t UR_V16X_DeepService::cmd_lst[] = {
+    {"ls"},
+    {"cat"},
+    {"echo"},
+    {NULL},
+};
+
 UR_V16X_DeepService::UR_V16X_DeepService()
 {
 }
@@ -133,18 +140,45 @@ bool UR_V16X_DeepService::process_qparams(const query_param_t *qparams, uint32_t
 bool UR_V16X_DeepService::execute_qstr(const query_param_t *qparams, uint32_t cnt, char **retmsg)
 {
     bool ret = false;
-    uint32_t idx_param = 0;
-    if (has_key(qparams, 1, cnt, "cmd", idx_param)) {
+    uint32_t idx_cmd = 0;
+
+    if (has_key(qparams, 1, cnt, "cmd", idx_cmd)) {
+        uint32_t idx_args = 0;
+        uint64_t valargslen = 0;
+
+        if (has_key(qparams, 2, cnt, "args", idx_args)) {
+            valargslen = strlen(qparams[idx_args].val);
+        }
+
+        char valargstmp[valargslen + 1] = {0};
+        if (valargslen > 0) {
+            memcpy(valargstmp, qparams[idx_args].val, valargslen);
+        }
+
         FILE *fd;
-        uint64_t vallen = strlen(qparams[idx_param].val);
-        uint64_t keylen = strlen(qparams[idx_param].key);
+        uint64_t vallen = strlen(qparams[idx_cmd].val);
+        uint64_t keylen = strlen(qparams[idx_cmd].key);
         char valtmp[vallen + 1] = {0};
-        char keytmp[keylen + 1] = {0};
 
-        memcpy(valtmp, qparams[idx_param].val, vallen);
-        memcpy(keytmp, qparams[idx_param].key, keylen);
+        memcpy(valtmp, qparams[idx_cmd].val, vallen);
 
-        fd = popen(valtmp, "r");
+        if (!cmd_avail(valtmp)) {
+            return false;
+        }
+
+        // Prevents absolute path operations.
+        char *vargs = valargstmp;
+        while (*vargs != 0) {
+            vargs++;
+            if (*vargs == '/') {
+                *vargs = ' ';
+            }
+        }
+
+        char cmdtmp[strlen(valtmp) + strlen(valargstmp)];
+
+        sprintf(cmdtmp, "%s %s", valtmp, valargstmp);
+        fd = popen(cmdtmp, "r");
 
         if (!fd) {
             return false;
@@ -170,8 +204,26 @@ bool UR_V16X_DeepService::execute_qstr(const query_param_t *qparams, uint32_t cn
         free(msgtmp);
         pclose(fd);
 
-        SHAL_SYSTEM::printf("DATA SDS executed, key: %s val: %s idx: %d vallen: %lu keylen: %lu\n", keytmp, valtmp, (int)idx_param, vallen, keylen);
+        char keytmp[keylen + 1] = {0};
+        memcpy(keytmp, qparams[idx_cmd].key, keylen);
+        SHAL_SYSTEM::printf("DATA SDS executed key: %s val: %s idx: %d vallen: %lu keylen: %lu\n", keytmp, valtmp, (int)idx_cmd, vallen, keylen);
         ret = true;
     }
+    return ret;
+}
+
+bool UR_V16X_DeepService::cmd_avail(char *pcmd)
+{
+    bool ret = false;
+    const cmd_lst_t *map = cmd_lst;
+
+    while(map->cmd) {
+        if (strcmp(map->cmd, pcmd) == 0) {
+            ret = true;
+            break;
+        }
+        map++;
+    }
+
     return ret;
 }
