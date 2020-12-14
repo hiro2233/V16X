@@ -159,7 +159,7 @@ private:
     void client_slot_delete(uint32_t clid_slot);
     bool poll_in(int fd, uint32_t timeout_ms);
     uint8_t parse_request(int fd, http_request_t *req);
-    void handle_message_outhttp(int fd, char *longmsg);
+    void handle_message_outhttp(int fd, const char *longmsg);
     void log_access(int status, struct sockaddr_in *c_addr, http_request_t *req);
     void client_error(int fd, int status, const char *msg, const char *longmsg);
     void serve_static(int out_fd, int in_fd, struct sockaddr_in *c_addr, http_request_t *req, size_t total_size);
@@ -167,7 +167,7 @@ private:
     ssize_t io_data_read(data_io_t *rp, char *usrbuf, size_t maxlen, int *closed);
     void io_data_init(data_io_t *rp, int fd);
     void url_decode(char* src, char* dest, int max);
-    ssize_t writen(int fd, void *usrbuf, size_t n);
+    ssize_t writen(int fd, const void *usrbuf, size_t n);
     const char* get_mime_type(char *filename);
     void format_size(char* buf, struct stat *stat, int *filecnt, int *dircnt);
     netsocket_inf_t *_get_next_unattached_client();

@@ -437,7 +437,7 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *clientaddr)
             char query_temp1[lenquery1 + 1] = {0};
 
             if (lenquery1 > 0) {
-                memcpy(query_temp1, query_string, lenquery1 + 1);
+                memcpy(query_temp1, query_string, lenquery1);
                 ret1 = deepsrv.parse_query(query_temp1,'&', '=', params1, 10);
             }
 
@@ -463,7 +463,7 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *clientaddr)
             char query_temp2[lenquery2 + 1] = {0};
 
             if (lenquery2 > 0) {
-                memcpy(query_temp2, data_parsed.data, lenquery2 + 1);
+                memcpy(query_temp2, data_parsed.data, lenquery2);
                 ret2 = deepsrv.parse_query(query_temp2,'&', '=', params2, 10);
             }
 
@@ -510,13 +510,24 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *clientaddr)
         }
 
         if (strcmp(req.filename, "sds") == 0) {
-            query_param_t split_querystr[15] = {0};
-            uint32_t ret_params = deepsrv.parse_query(query_string, '&', '=', split_querystr, 15);
+            query_param_t split_querystr[10] = {0};
+            char *ret_msg[1] = {0};
+            char qstrtemp[strlen(query_string) + 1] = {0};
+            memcpy(qstrtemp, query_string, strlen(query_string));
 
-            SHAL_SYSTEM::printf("\nSDS QUERY Params GET count: %d query_string: %s filenametmp: %s\n", ret_params, query_string, filenametmp);
+            uint32_t ret_params = deepsrv.parse_query(qstrtemp, '&', '=', &split_querystr[0], 10);
+
+            SHAL_SYSTEM::printf("\nSDS QUERY Params GET count: %d qstrtemp: %s filenametmp: %s\n", ret_params, qstrtemp, filenametmp);
             deepsrv.print_query_params(split_querystr, ret_params);
+            deepsrv.process_qparams(split_querystr, ret_params, ret_msg);
             deepsrv.destroy_qparams(split_querystr, ret_params);
-            sprintf(msg, "%s", "sds ok");
+            if (ret_msg[0] != 0) {
+                handle_message_outhttp(fd, ret_msg[0]);
+                free(ret_msg[0]);
+                return ret;
+            }
+            memset(msg, 0, MAX_BUFF);
+            sprintf(msg, "%s", "NONE");
             handle_message_outhttp(fd, msg);
             return ret;
         }
@@ -550,7 +561,7 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *clientaddr)
                 int lenquery3 = strlen(query_string);
                 char query_temp3[lenquery3 + 1] = {0};
                 if (lenquery3 > 0) {
-                    memcpy(query_temp3, query_string, lenquery3 + 1);
+                    memcpy(query_temp3, query_string, lenquery3);
                     ret3 = deepsrv.parse_query(query_temp3,'&', '=', params3, 10);
                 }
 
@@ -834,7 +845,7 @@ int UR_V16X_Posix::_decode_hybi(char *src, size_t srclength, char *target, int t
     if (*opcode & OPCODE_TEXT) {
         int offsetcp = hdr_length + (4 * masked);
         memset(&target[0], 0, payload_length + 1);
-        memcpy(&target[0], src + offsetcp, payload_length);
+        memmove(&target[0], src + offsetcp, payload_length);
     }
 
     target[payload_length + 1] = '\0';
@@ -861,8 +872,8 @@ uint8_t UR_V16X_Posix::parse_request(int fd, http_request_t *req)
         return closed;
     }
 
-    query_param_t split_params[15] = {0};
-    uint32_t ret_params = deepsrv.parse_query(buf, '\n', 0, split_params, 15);
+    query_param_t split_params[10] = {0};
+    uint32_t ret_params = deepsrv.parse_query(buf, '\n', 0, split_params, 10);
     uint32_t idx_param;
 
     if (deepsrv.has_key(split_params, 1, ret_params, "event-stream", idx_param)) {
@@ -956,10 +967,10 @@ uint8_t UR_V16X_Posix::parse_request(int fd, http_request_t *req)
         _set_client_event_websocket(fd, true);
         char header[10] = {0};
         char query_str[MAX_BUFF] = {0};
-        query_param_t split_querystr[15] = {0};
+        query_param_t split_querystr[10] = {0};
 
         sscanf(wsdec, "%s %s", header, query_str);
-        ret_params = deepsrv.parse_query(query_str, '&', '=', split_querystr, 15);
+        ret_params = deepsrv.parse_query(query_str, '&', '=', split_querystr, 10);
 
         SHAL_SYSTEM::printf("\nSDS SOCKET Params GET count: %d query_str: %s\n", ret_params, query_str);
         deepsrv.print_query_params(split_querystr, ret_params);
@@ -1014,9 +1025,9 @@ uint8_t UR_V16X_Posix::parse_request(int fd, http_request_t *req)
     return closed;
 }
 
-void UR_V16X_Posix::handle_message_outhttp(int fd, char *longmsg)
+void UR_V16X_Posix::handle_message_outhttp(int fd, const char *longmsg)
 {
-    char buf[MAX_BUFF] = {0};
+    char buf[1024] = {0};
 
     if (!_has_client_events(fd)) {
         sprintf(buf, "HTTP/1.1 %d %s\r\n", 200, "OK");
@@ -1026,8 +1037,12 @@ void UR_V16X_Posix::handle_message_outhttp(int fd, char *longmsg)
         sprintf(buf + strlen(buf), "%s", "Content-Type:text/plain;charset=UTF-8\r\n");
         sprintf(buf + strlen(buf), "Date:%s\r\n", SHAL_SYSTEM::get_date());
         sprintf(buf + strlen(buf), "Content-length:%lu\r\n\r\n", strlen(longmsg));
-        sprintf(buf + strlen(buf), "%s", longmsg);
         writen(fd, buf, strlen(buf));
+        //sprintf(buf + strlen(buf), "%s", longmsg);
+        uint64_t lenlng = strlen(longmsg);
+        //char buftmp[lenlng];
+        //memmove(buftmp, &longmsg[0], lenlng);
+        writen(fd, longmsg, lenlng);
     }
 }
 
@@ -1175,7 +1190,7 @@ void UR_V16X_Posix::handle_directory_request(int out_fd, int dir_fd, char *filen
     int dircnt = 0;
 
     norm_filename = new char[strlen(filename) + 1];
-    memcpy(norm_filename, filename, strlen(filename) + 1);
+    memcpy(norm_filename, filename, strlen(filename));
 
     while((*norm_filename != '/') && (*norm_filename != '\0')) {
         norm_filename++;
@@ -1286,7 +1301,7 @@ void UR_V16X_Posix::url_decode(char* src, char* dest, int max)
     *dest = '\0';
 }
 
-ssize_t UR_V16X_Posix::writen(int fd, void *usrbuf, size_t n)
+ssize_t UR_V16X_Posix::writen(int fd, const void *usrbuf, size_t n)
 {
     size_t nleft = n;
     ssize_t nwritten;
