@@ -32,11 +32,21 @@ public:
     UR_V16X_DeepService();
     virtual ~UR_V16X_DeepService(void) {};
 
+    // Print query params keys and values.
     void print_query_params(const query_param_t *qparam, uint32_t cnt);
+    // Parse query, extract and sets the keys and values into the params giving the delimiter and the setter tokens.
+    // Return param's pairs count extracted."
     uint32_t parse_query(const char *query, char delimiter, char setter, query_param_t *params, uint32_t max_params);
+    // Check if params has keys.
     bool has_key(const query_param_t *params, uint32_t offset, uint32_t cnt, const char *strkey, uint32_t &idx);
+    // Ensure destroying keys and values pairs.
     uint32_t destroy_qparams(query_param_t *params, uint32_t cnt);
+    // Process query params already parsed.
+    bool process_qparams(const query_param_t *qparams, uint32_t cnt, char **retmsg);
 
 private:
+
+    // Execute query params string type already parsed.
+    bool execute_qstr(const query_param_t *qparams, uint32_t cnt, char **retmsg);
 
 };
