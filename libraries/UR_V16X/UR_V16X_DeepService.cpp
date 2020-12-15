@@ -131,11 +131,15 @@ bool UR_V16X_DeepService::process_qparams(const query_param_t *qparams, uint32_t
     uint32_t idx_param = 0;
 
     if (has_key(qparams, 0, cnt, "qstr", idx_param)) {
+#if V16X_DEBUG >= 99
         SHAL_SYSTEM::printf("process SDS QSTR key: %s val: %s idx: %d\n", qparams[idx_param].key, qparams[idx_param].val, idx_param);
-        execute_qstr(qparams, cnt, retmsg);
+#endif // V16X_DEBUG
+        ret = execute_qstr(qparams, cnt, retmsg);
     }
     if (has_key(qparams, 0, cnt, "qbin", idx_param)) {
+#if V16X_DEBUG >= 99
         SHAL_SYSTEM::printf("process SDS QBIN key: %s val: %s idx: %d\n", qparams[idx_param].key, qparams[idx_param].val, idx_param);
+#endif
     }
 
     return ret;
@@ -159,17 +163,6 @@ bool UR_V16X_DeepService::execute_qstr(const query_param_t *qparams, uint32_t cn
             memcpy(valargstmp, qparams[idx_args].val, valargslen);
         }
 
-        FILE *fd;
-        uint64_t vallen = strlen(qparams[idx_cmd].val);
-        uint64_t keylen = strlen(qparams[idx_cmd].key);
-        char valtmp[vallen + 1] = {0};
-
-        memcpy(valtmp, qparams[idx_cmd].val, vallen);
-
-        if (!cmd_avail(valtmp)) {
-            return false;
-        }
-
         // Prevents absolute path operations.
         char *vargs = valargstmp;
         while (*vargs != 0) {
@@ -179,46 +172,26 @@ bool UR_V16X_DeepService::execute_qstr(const query_param_t *qparams, uint32_t cn
             vargs++;
         }
 
-        char cmdtmp[strlen(valtmp) + strlen(valargstmp)];
+        uint64_t vallen = strlen(qparams[idx_cmd].val);
+        char valtmp[vallen + 1] = {0};
 
-        int retmkdir = mkdir(STRINGIZEDEF_VAL(V16X_DIR_TMP), 0775);
-        int retcd = chdir(STRINGIZEDEF_VAL(V16X_DIR_TMP));
-        (void)retmkdir;
+        memcpy(valtmp, qparams[idx_cmd].val, vallen);
 
-        sprintf(cmdtmp, "%s %s 2>&1", valtmp, valargstmp);
-        fd = popen(cmdtmp, "r");
-
-        retcd = chdir("..");
-        (void)retcd;
-
-        if (!fd) {
+        if (!cmd_avail(valtmp)) {
             return false;
         }
 
-        char buffer[128];
-        size_t chread;
-        size_t comalloc = 128;
-        size_t comlen   = 0;
-        char *msgtmp = (char*)calloc(comalloc, 1);
+        char cmdtmp[strlen(valtmp) + strlen(valargstmp)];
+        sprintf(cmdtmp, "%s %s 2>&1", valtmp, valargstmp);
 
-        while ((chread = fread(buffer, 1, sizeof(buffer), fd)) != 0) {
-            if (comlen + chread >= comalloc) {
-                comalloc *= 2;
-                msgtmp = (char*)realloc(msgtmp, comalloc);
-            }
-            memmove(msgtmp + comlen, buffer, chread);
-            comlen += chread;
-        }
+        ret = exe_cmd(cmdtmp, retmsg);
 
-        *retmsg = (char*)calloc(comlen, 1);
-        memmove(*retmsg, msgtmp, comlen);
-        free(msgtmp);
-        pclose(fd);
-
+#if V16X_DEBUG >= 99
+        uint64_t keylen = strlen(qparams[idx_cmd].key);
         char keytmp[keylen + 1] = {0};
         memcpy(keytmp, qparams[idx_cmd].key, keylen);
         SHAL_SYSTEM::printf("DATA SDS executed key: %s val: %s idx: %d vallen: %lu keylen: %lu\n", keytmp, valtmp, (int)idx_cmd, vallen, keylen);
-        ret = true;
+#endif // V16X_DEBUG
     }
     return ret;
 }
@@ -237,4 +210,43 @@ bool UR_V16X_DeepService::cmd_avail(char *pcmd)
     }
 
     return ret;
+}
+
+bool UR_V16X_DeepService::exe_cmd(const char *cmd, char **retmsg)
+{
+    int retmkdir = mkdir(STRINGIZEDEF_VAL(V16X_DIR_TMP), 0775);
+    int retcd = chdir(STRINGIZEDEF_VAL(V16X_DIR_TMP));
+    (void)retmkdir;
+
+    FILE *fd;
+    fd = popen(cmd, "r");
+
+    retcd = chdir("..");
+    (void)retcd;
+
+    if (!fd) {
+        return false;
+    }
+
+    char buffer[128];
+    size_t chread;
+    size_t comalloc = 128;
+    size_t comlen   = 0;
+    char *msgtmp = (char*)calloc(comalloc, 1);
+
+    while ((chread = fread(buffer, 1, sizeof(buffer), fd)) != 0) {
+        if (comlen + chread >= comalloc) {
+            comalloc *= 2;
+            msgtmp = (char*)realloc(msgtmp, comalloc);
+        }
+        memmove(msgtmp + comlen, buffer, chread);
+        comlen += chread;
+    }
+
+    *retmsg = (char*)calloc(comlen, 1);
+    memmove(*retmsg, msgtmp, comlen);
+    free(msgtmp);
+    pclose(fd);
+
+    return true;
 }
