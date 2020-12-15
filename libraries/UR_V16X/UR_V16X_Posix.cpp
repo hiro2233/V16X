@@ -411,6 +411,9 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *clientaddr)
         cgi_query = 1;
         *query_string = '\0';
         query_string++;
+        if (*query_string == 0) {
+            *query_string = 0x20;
+        }
     }
 
     int status = 200;
