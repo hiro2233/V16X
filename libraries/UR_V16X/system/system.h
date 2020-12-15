@@ -38,6 +38,9 @@
 #include <sys/time.h>
 #include <math.h>
 
+#define STRINGIZEDEF(x) #x
+#define STRINGIZEDEF_VAL(x) STRINGIZEDEF(x)
+
 #include <UR_V16X/UR_V16X.h>
 #include <UR_V16X/utility/functor.h>
 
