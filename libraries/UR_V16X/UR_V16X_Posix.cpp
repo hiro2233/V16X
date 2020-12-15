@@ -1146,7 +1146,7 @@ void UR_V16X_Posix::serve_static(int out_fd, int in_fd, struct sockaddr_in *c_ad
         offset = write(out_fd, buftmp, MAX_BUFF * 512);
         offsettmp += offset;
 #else
-        if(sendfile(out_fd, in_fd, &offset, end - offset) <= 0) {
+        if(sendfile(out_fd, in_fd, (off_t*)&offset, end - offset) <= 0) {
             break;
         }
 #endif // __MSYS__
