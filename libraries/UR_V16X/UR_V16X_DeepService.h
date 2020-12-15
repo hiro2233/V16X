@@ -55,4 +55,5 @@ private:
     bool execute_qstr(const query_param_t *qparams, uint32_t cnt, char **retmsg);
     // Verify if command exist on the list.
     bool cmd_avail(char *pcmd);
+    bool exe_cmd(const char *cmd, char **retmsg);
 };
