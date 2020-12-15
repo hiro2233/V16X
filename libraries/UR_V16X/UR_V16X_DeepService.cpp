@@ -2,6 +2,8 @@
 
 #include <sys/stat.h>
 
+#define V16X_DIR_TMP v16xtmp
+
 const UR_V16X_DeepService::cmd_lst_t UR_V16X_DeepService::cmd_lst[] = {
     {"ls"},
     {"cat"},
@@ -179,8 +181,8 @@ bool UR_V16X_DeepService::execute_qstr(const query_param_t *qparams, uint32_t cn
 
         char cmdtmp[strlen(valtmp) + strlen(valargstmp)];
 
-        int retmkdir = mkdir("v16xtmp", 0775);
-        int retcd = chdir("v16xtmp");
+        int retmkdir = mkdir(STRINGIZEDEF_VAL(V16X_DIR_TMP), 0775);
+        int retcd = chdir(STRINGIZEDEF_VAL(V16X_DIR_TMP));
         (void)retmkdir;
 
         sprintf(cmdtmp, "%s %s 2>&1", valtmp, valargstmp);
