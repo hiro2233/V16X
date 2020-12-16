@@ -441,6 +441,7 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *clientaddr)
 
             if (lenquery1 > 0) {
                 memcpy(query_temp1, query_string, lenquery1);
+                SHAL_SYSTEM::printf("%sDATA string prints%s\n", COLOR_PRINTF_WHITE(0), COLOR_PRINTF_RESET);
                 ret1 = deepsrv.parse_query(query_temp1,'&', '=', params1, 10);
             }
 
@@ -467,6 +468,7 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *clientaddr)
 
             if (lenquery2 > 0) {
                 memcpy(query_temp2, data_parsed.data, lenquery2);
+                SHAL_SYSTEM::printf("%sDATA PARSED STORED prints%s\n", COLOR_PRINTF_WHITE(0), COLOR_PRINTF_RESET);
                 ret2 = deepsrv.parse_query(query_temp2,'&', '=', params2, 10);
             }
 
@@ -875,8 +877,12 @@ uint8_t UR_V16X_Posix::parse_request(int fd, http_request_t *req)
         return closed;
     }
 
-    query_param_t split_params[10] = {0};
-    uint32_t ret_params = deepsrv.parse_query(buf, '\n', 0, split_params, 10);
+    query_param_t split_params[20] = {0};
+    uint32_t ret_params = deepsrv.parse_query(buf, '\n', 0, split_params, 20);
+#if V16X_DEBUG >= 99
+    SHAL_SYSTEM::printf("%sEvents prints%s\n", COLOR_PRINTF_WHITE(0), COLOR_PRINTF_RESET);
+    deepsrv.print_query_params(split_params, ret_params);
+#endif
     uint32_t idx_param;
 
     if (deepsrv.has_key(split_params, 1, ret_params, "event-stream", idx_param)) {
@@ -1264,7 +1270,7 @@ ssize_t UR_V16X_Posix::io_data_read(data_io_t *data_iop, char *usrbuf, size_t ma
     memset(usrbuf, '\0', maxlen);
     data_iop->io_cnt = recv(data_iop->io_fd, data_iop->io_buf, MAX_BUFF, MSG_DONTWAIT);
 #if V16X_DEBUG >= 99
-    SHAL_SYSTEM::printf("io_data_read 2 cnt: %d buf: %s\n", data_iop->io_cnt, data_iop->io_buf);
+    SHAL_SYSTEM::printf("%sio_data_read 2 cnt:%s %d buf: %s\n", COLOR_PRINTF_RED(0), COLOR_PRINTF_RESET, data_iop->io_cnt, data_iop->io_buf);
     //fflush(stdout);
 #endif // V16X_DEBUG
     if (data_iop->io_cnt > 0) {
