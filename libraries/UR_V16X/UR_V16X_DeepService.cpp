@@ -19,19 +19,23 @@ void UR_V16X_DeepService::print_query_params(const query_param_t *qparam, uint32
 {
     uint32_t idx_param = 0;
     if (has_key(qparam, 0, cnt, "qstr", idx_param)) {
-        SHAL_SYSTEM::printf("SDS QSTR key: %s val: %s idx: %d\n", qparam[idx_param].key, qparam[idx_param].val, idx_param);
+        SHAL_SYSTEM::printf("%sSDS QSTR key:%s %s val: %s idx: %d\n", COLOR_PRINTF_BLUE(1), COLOR_PRINTF_RESET, qparam[idx_param].key, qparam[idx_param].val, idx_param);
     }
     if (has_key(qparam, 0, cnt, "qbin", idx_param)) {
-        SHAL_SYSTEM::printf("SDS QBIN key: %s val: %s idx: %d\n", qparam[idx_param].key, qparam[idx_param].val, idx_param);
+        SHAL_SYSTEM::printf("%sSDS QBIN key:%s %s val: %s idx: %d\n", COLOR_PRINTF_BLUE(1), COLOR_PRINTF_RESET, qparam[idx_param].key, qparam[idx_param].val, idx_param);
     }
 
-    SHAL_SYSTEM::printf("----------------------------------\n");
+    SHAL_SYSTEM::printf("%s----------------------------------%s\n", COLOR_PRINTF_BLUE(1), COLOR_PRINTF_RESET);
     for (uint8_t i = 0; i < cnt; i++) {
-        if (qparam[i].key && qparam[i].val) {
-            SHAL_SYSTEM::printf("idx: %d key: %s val: %s\n", i, qparam[i].key, qparam[i].val);
+        if (qparam[i].key) {
+            SHAL_SYSTEM::printf("%sidx:%s %d key: %s ", COLOR_PRINTF_BLUE(1), COLOR_PRINTF_RESET, i, qparam[i].key);
+            if (qparam[i].val) {
+                SHAL_SYSTEM::printf("val: %s", qparam[i].val);
+            }
+            SHAL_SYSTEM::printf("\n");
         }
     }
-    SHAL_SYSTEM::printf("----------------------------------\n");
+    SHAL_SYSTEM::printf("%s----------------------------------%s\n\n", COLOR_PRINTF_BLUE(1), COLOR_PRINTF_RESET);
 }
 
 uint32_t UR_V16X_DeepService::parse_query(const char *query, char delimiter, char setter, query_param_t *params, uint32_t max_params)
@@ -50,7 +54,7 @@ uint32_t UR_V16X_DeepService::parse_query(const char *query, char delimiter, cha
 
     memmove(&querytmp[0], &query[0], strlen(query));
     if (setter == 0) {
-        pch = strtok(querytmp, &setter);
+        pch = strtok(querytmp, &delimiter);
     } else {
         pch = strtok(querytmp, delimset);
     }
@@ -61,7 +65,7 @@ uint32_t UR_V16X_DeepService::parse_query(const char *query, char delimiter, cha
             memset(&params[idxcnt].key[0], 0, strlen(pch) + 1);
             memmove(&params[idxcnt].key[0], pch, strlen(pch));
             params[idxcnt].val = NULL;
-            pch = strtok(NULL, &setter);
+            pch = strtok(NULL, &delimiter);
             idxcnt++;
             continue;
         }
@@ -70,7 +74,7 @@ uint32_t UR_V16X_DeepService::parse_query(const char *query, char delimiter, cha
             memset(&params[idxcnt].val[0], 0, strlen(pch) + 1);
             memmove(&params[idxcnt].val[0], pch, strlen(pch));
             if (setter != 0) {
-                printf ("Val: %s\n", pch);
+                SHAL_SYSTEM::printf ("%sPVal:%s %s\n", COLOR_PRINTF_BLUE(1), COLOR_PRINTF_RESET, pch);
             }
             idxcnt++;
         } else {
@@ -78,7 +82,7 @@ uint32_t UR_V16X_DeepService::parse_query(const char *query, char delimiter, cha
             memset(&params[idxcnt].key[0], 0, strlen(pch) + 1);
             memmove(&params[idxcnt].key[0], pch, strlen(pch));
             if (setter != 0) {
-                printf ("Key: %s ", pch);
+                SHAL_SYSTEM::printf ("%sPKey:%s %s ", COLOR_PRINTF_BLUE(1), COLOR_PRINTF_RESET, pch);
             }
         }
         pch = strtok(NULL, delimset);
@@ -132,13 +136,13 @@ bool UR_V16X_DeepService::process_qparams(const query_param_t *qparams, uint32_t
 
     if (has_key(qparams, 0, cnt, "qstr", idx_param)) {
 #if V16X_DEBUG >= 99
-        SHAL_SYSTEM::printf("process SDS QSTR key: %s val: %s idx: %d\n", qparams[idx_param].key, qparams[idx_param].val, idx_param);
+        SHAL_SYSTEM::printf("%sprocess SDS QSTR key:%s %s val: %s idx: %d\n", COLOR_PRINTF_BLUE(1), COLOR_PRINTF_RESET, qparams[idx_param].key, qparams[idx_param].val, idx_param);
 #endif // V16X_DEBUG
         ret = execute_qstr(qparams, cnt, retmsg);
     }
     if (has_key(qparams, 0, cnt, "qbin", idx_param)) {
 #if V16X_DEBUG >= 99
-        SHAL_SYSTEM::printf("process SDS QBIN key: %s val: %s idx: %d\n", qparams[idx_param].key, qparams[idx_param].val, idx_param);
+        SHAL_SYSTEM::printf("%sprocess SDS QBIN key:%s %s val: %s idx: %d\n", COLOR_PRINTF_BLUE(1), COLOR_PRINTF_RESET, qparams[idx_param].key, qparams[idx_param].val, idx_param);
 #endif
     }
 
@@ -190,7 +194,7 @@ bool UR_V16X_DeepService::execute_qstr(const query_param_t *qparams, uint32_t cn
         uint64_t keylen = strlen(qparams[idx_cmd].key);
         char keytmp[keylen + 1] = {0};
         memcpy(keytmp, qparams[idx_cmd].key, keylen);
-        SHAL_SYSTEM::printf("DATA SDS executed key: %s val: %s idx: %d vallen: %lu keylen: %lu\n", keytmp, valtmp, (int)idx_cmd, vallen, keylen);
+        SHAL_SYSTEM::printf("%sDATA SDS executed key:%s %s val: %s idx: %d vallen: %lu keylen: %lu\n", COLOR_PRINTF_BLUE(1), COLOR_PRINTF_RESET, keytmp, valtmp, (int)idx_cmd, vallen, keylen);
 #endif // V16X_DEBUG
     }
     return ret;
