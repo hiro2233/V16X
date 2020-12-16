@@ -167,8 +167,12 @@ bool UR_V16X_DeepService::execute_qstr(const query_param_t *qparams, uint32_t cn
             memcpy(valargstmp, qparams[idx_args].val, valargslen);
         }
 
-        // Prevents absolute path operations.
+        // Check if leveling up path and Prevents absolute path operations
         char *vargs = valargstmp;
+        if (strstr(vargs, "..")) {
+            *vargs = 0x20;
+        }
+
         while (*vargs != 0) {
             if (*vargs == '/') {
                 *vargs = ' ';
@@ -185,6 +189,9 @@ bool UR_V16X_DeepService::execute_qstr(const query_param_t *qparams, uint32_t cn
             return false;
         }
 
+        if (strlen(valargstmp) <= 0) {
+            sprintf(valargstmp, "%s", ".");
+        }
         char cmdtmp[strlen(valtmp) + strlen(valargstmp)];
         sprintf(cmdtmp, "%s %s 2>&1", valtmp, valargstmp);
 
