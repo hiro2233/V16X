@@ -41,6 +41,12 @@
 #define STRINGIZEDEF(x) #x
 #define STRINGIZEDEF_VAL(x) STRINGIZEDEF(x)
 
+#define COLOR_PRINTF_RESET "\e[0m"
+#define COLOR_PRINTF_BLUE(bold) "\e["#bold";34m"
+#define COLOR_PRINTF_RED(bold) "\e["#bold";31m"
+#define COLOR_PRINTF_PURPLE(bold) "\e["#bold";35m"
+#define COLOR_PRINTF_WHITE(bold) "\e["#bold";37m"
+
 #include <UR_V16X/UR_V16X.h>
 #include <UR_V16X/utility/functor.h>
 
