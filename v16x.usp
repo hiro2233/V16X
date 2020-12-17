@@ -84,13 +84,13 @@
 			</Target>
 		</Build>
 		<Compiler>
+			<Add option="-Wshadow" />
 			<Add option="-Wall" />
-			<Add option="-std=c11" />
 			<Add option="-std=gnu++11" />
 			<Add option="-fpermissive" />
-			<Add option="-Wshadow" />
 			<Add option="-D__STDC_FORMAT_MACROS" />
 			<Add option="-DENABLE_SYSTEM_SHUTDOWN" />
+			<Add option="-DCRYPTON_TYPE=CRYPTON_OPENSSL" />
 			<Add directory="libraries" />
 		</Compiler>
 		<Linker>
@@ -100,6 +100,14 @@
 		<Unit filename="app/main.cpp" />
 		<Unit filename="app/v16x_server.cpp" />
 		<Unit filename="app/v16x_server.h" />
+		<Unit filename="libraries/UR_Crypton/UR_Crypton.cpp" />
+		<Unit filename="libraries/UR_Crypton/UR_Crypton.h" />
+		<Unit filename="libraries/UR_Crypton/UR_Crypton_Backend.cpp" />
+		<Unit filename="libraries/UR_Crypton/UR_Crypton_Backend.h" />
+		<Unit filename="libraries/UR_Crypton/UR_Crypton_Native.cpp" />
+		<Unit filename="libraries/UR_Crypton/UR_Crypton_Native.h" />
+		<Unit filename="libraries/UR_Crypton/UR_Crypton_Openssl.cpp" />
+		<Unit filename="libraries/UR_Crypton/UR_Crypton_Openssl.h" />
 		<Unit filename="libraries/UR_V16X/UR_V16X.cpp" />
 		<Unit filename="libraries/UR_V16X/UR_V16X.h" />
 		<Unit filename="libraries/UR_V16X/UR_V16X_DeepService.cpp" />
