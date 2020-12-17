@@ -47,6 +47,17 @@
 #define COLOR_PRINTF_PURPLE(bold) "\e["#bold";35m"
 #define COLOR_PRINTF_WHITE(bold) "\e["#bold";37m"
 
+#define CRYPTON_NATIVE 1
+#define CRYPTON_OPENSSL 2
+
+#ifndef CRYPTON_TYPE
+#if defined(__unix__) || defined(__MSYS__)
+#define CRYPTON_TYPE CRYPTON_OPENSSL
+#else
+#define CRYPTON_TYPE CRYPTON_NATIVE
+#endif //
+#endif // CRYPTON_TYPE
+
 #include <UR_V16X/UR_V16X.h>
 #include <UR_V16X/utility/functor.h>
 
