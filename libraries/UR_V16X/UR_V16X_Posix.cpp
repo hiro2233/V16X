@@ -18,8 +18,6 @@
 
 #include "UR_V16X_Posix.h"
 
-#include <sys/mman.h>
-
 #include <vector>
 #include <string>
 
@@ -88,6 +86,8 @@ void UR_V16X_Posix::init(void)
 {
     SHAL_SYSTEM::printf("Init V16X endpoint: %d\n", _endpoint);
     fflush(stdout);
+
+    ur_crypton.init();
 
     cli_count = 0;
     for (uint16_t i = 0; i < V16X_MAX_CLIENTS; ++i) {
@@ -626,76 +626,6 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *clientaddr)
     return ret;
 }
 
-int UR_V16X_Posix::_ws_b64_ntop(const char * src, size_t srclen, char * dst, size_t dstlen)
-{
-    size_t len = 0;
-    int total_len = 0;
-
-    BIO *buff;
-    BIO *b64f;
-    BUF_MEM *ptr;
-
-    b64f = BIO_new(BIO_f_base64());
-    buff = BIO_new(BIO_s_mem());
-    buff = BIO_push(b64f, buff);
-
-    BIO_set_flags(buff, BIO_FLAGS_BASE64_NO_NL);
-    (void)BIO_set_close(buff, BIO_CLOSE);
-    do {
-        len = BIO_write(buff, src + total_len, srclen - total_len);
-        if (len > 0)
-            total_len += len;
-    } while (len && BIO_should_retry(buff));
-
-    (void)BIO_flush(buff);
-
-    BIO_get_mem_ptr(buff, &ptr);
-    len = ptr->length;
-
-    memcpy(dst, ptr->data, dstlen < len ? dstlen : len);
-    dst[dstlen < len ? dstlen : len] = '\0';
-
-    BIO_free_all(buff);
-
-    if (dstlen < len)
-        return -1;
-
-    return len;
-}
-
-int UR_V16X_Posix::_ws_b64_pton(const char * src, char * dst, int dstlen)
-{
-    int len = 0;
-    int total_len = 0;
-    int pending = 0;
-
-    BIO *buff;
-    BIO *b64f;
-
-    b64f = BIO_new(BIO_f_base64());
-    buff = BIO_new_mem_buf(src, -1);
-    buff = BIO_push(b64f, buff);
-
-    BIO_set_flags(buff, BIO_FLAGS_BASE64_NO_NL);
-    (void)BIO_set_close(buff, BIO_CLOSE);
-    do {
-        len = BIO_read(buff, dst + total_len, dstlen - total_len);
-        if (len > 0)
-            total_len += len;
-    } while (len && BIO_should_retry(buff));
-
-    dst[total_len] = '\0';
-
-    pending = BIO_ctrl_pending(buff);
-
-    BIO_free_all(buff);
-
-    if (pending)
-        return -1;
-
-    return len;
-}
-
 int UR_V16X_Posix::_encode_hybi(char const *src, size_t srclength, char *target, size_t targsize, unsigned int opcode)
 {
     unsigned long long payload_offset = 2;
@@ -731,7 +661,7 @@ int UR_V16X_Posix::_encode_hybi(char const *src, size_t srclength, char *target,
     }
 
     if (opcode & OPCODE_TEXT) {
-        len = _ws_b64_ntop(src, srclength, target+payload_offset, targsize-payload_offset);
+        len = ur_crypton.b64_enc(target+payload_offset, targsize-payload_offset, src, srclength);
     } else {
         memcpy(target+payload_offset, src, srclength);
         len = srclength;
@@ -825,7 +755,7 @@ int UR_V16X_Posix::_decode_hybi(char *src, size_t srclength, char *target, int t
 
         if (*opcode & OPCODE_TEXT) {
             // base64 decode the data
-            len = _ws_b64_pton(payload, target+target_offset, targsize);
+            len = ur_crypton.b64_dec(target+target_offset, payload, targsize);
 #if V16X_DEBUG >= 1
             SHAL_SYSTEM::printf("tgtcnt TEXT: %d\n", tgtcnt);
 #endif // V16X_DEBUG
@@ -913,12 +843,8 @@ uint8_t UR_V16X_Posix::parse_request(int fd, http_request_t *req)
 
         sprintf(fldval + strlen(fldval), "%s", MAGIC_WEBSOCKET_KEY);
 
-        SHA_CTX shactx;
-        SHA1_Init(&shactx);
-        SHA1_Update(&shactx, (const unsigned char*)fldval, strlen(fldval));
-        SHA1_Final((unsigned char*)digest, &shactx);
-
-        _ws_b64_ntop(digest, strlen(digest), b64enc, MAX_BUFF);
+        ur_crypton.sha1_apply((const unsigned char*)fldval, (unsigned char*)digest);
+        ur_crypton.b64_enc(b64enc, MAX_BUFF, digest, strlen(digest));
 
         SHAL_SYSTEM::printf("\n++++++++Web Socket parsed!++++++++\n");
 #if V16X_DEBUG >= 1
