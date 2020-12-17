@@ -20,6 +20,7 @@
 
 #include "UR_V16X_Driver.h"
 #include "UR_V16X_DeepService.h"
+#include <UR_Crypton/UR_Crypton.h>
 
 #include <stdarg.h>
 #include <arpa/inet.h>
@@ -47,13 +48,6 @@
 #include <netdb.h>
 
 #include <sys/socket.h>
-
-#include <openssl/evp.h>
-#include <openssl/err.h>
-#include <openssl/ssl.h>
-#include <openssl/bio.h> /* base64 encode/decode */
-#include <openssl/md5.h> /* md5 hash */
-#include <openssl/sha.h> /* sha1 hash */
 
 #define MAX_LISTEN  1000  /* max connections */
 #define MAX_BUFF 2048
@@ -132,6 +126,8 @@ public:
     void process_event_stream();
 
 private:
+    UR_Crypton ur_crypton;
+
     uint8_t _endpoint;
     int default_port = 9998;
     char default_addr[16];
@@ -185,7 +181,5 @@ private:
     void _get_client(TYPE_TRANSACTION_E typetr, netsocket_inf_t &client);
     int _decode_hybi(char *src, size_t srclength, char *target, int targsize, unsigned int *opcode, unsigned int *left);
     int _encode_hybi(char const *src, size_t srclength, char *target, size_t targsize, unsigned int opcode);
-    int _ws_b64_pton(const char * src, char * dst, int dstlen);
-    int _ws_b64_ntop(const char * src, size_t srclen, char * dst, size_t dstlen);
     int _get_ip_host(char *host, int len);
 };
