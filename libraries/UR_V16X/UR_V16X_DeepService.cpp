@@ -225,7 +225,11 @@ bool UR_V16X_DeepService::cmd_avail(char *pcmd)
 
 bool UR_V16X_DeepService::exe_cmd(const char *cmd, char **retmsg)
 {
+#ifndef __MINGW32__
     int retmkdir = mkdir(STRINGIZEDEF_VAL(V16X_DIR_TMP), 0775);
+#else
+    int retmkdir = mkdir(STRINGIZEDEF_VAL(V16X_DIR_TMP));
+#endif
     int retcd = chdir(STRINGIZEDEF_VAL(V16X_DIR_TMP));
     (void)retmkdir;
 
