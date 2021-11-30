@@ -23,31 +23,49 @@
 #include <UR_Crypton/UR_Crypton.h>
 
 #include <stdarg.h>
+#if !defined(__MINGW32__)
 #include <arpa/inet.h>
-#include <signal.h>
 #include <dirent.h>
+#endif
+#include <signal.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <time.h>
+#if !defined(__MINGW32__)
 #include <netinet/in.h>
 #include <netinet/tcp.h>
+#endif
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#ifndef __MSYS__
+#if !defined(__MSYS__) && !defined(__MINGW32__)
 #include <sys/sendfile.h>
 #endif // __MSYS__
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <pthread.h>
+#if !defined(__MINGW32__)
 #include <poll.h>
+#endif
 #include <stdbool.h>
 #include <atomic>
 #include <math.h>
+#if !defined(__MINGW32__)
 #include <netdb.h>
+#endif
 
+#if defined(__MINGW32__)
+#include <winsock2.h>
+#include <ws2ipdef.h>
+#include <ws2tcpip.h>
+#include <mstcpip.h>
+#include <wininet.h>
+#include "system/missing/netsocket_win.h"
+#include "dirent_win.h"
+#else
 #include <sys/socket.h>
+#endif
 
 #define MAX_LISTEN  1000  /* max connections */
 #define MAX_BUFF 2048
@@ -56,7 +74,7 @@
 #define FIREPROC_POLLIN_INTERVAL 20 // Time in ms
 #define OPCODE_TEXT    0x01
 #define OPCODE_BINARY  0x02
-#define TIMEOUT_FIREPROC   300 // Time in ms
+#define TIMEOUT_FIREPROC   500 // Time in ms
 
 class UR_V16X_Posix : public UR_V16X_Driver
 {
@@ -114,19 +132,21 @@ public:
         bool event_websocket;
         bool evtwebsock_ping;
         bool method_get;
+        bool keep_alive;
+        bool method_head;
     } netsocket_inf_t;
 
     UR_V16X_Posix(UR_V16X &v16x);
-    void update(void);
+    void update(void) override;
     void init(void);
     static UR_V16X_Driver *create_endpoint(UR_V16X &v16x);
-    void fire_process();
-    void shuttdown();
+    void fire_process() override;
+    void shuttdown() override;
     int process(int fd, struct sockaddr_in *clientaddr);
     void process_event_stream();
 
 private:
-    UR_Crypton ur_crypton;
+    static UR_Crypton ur_crypton;
 
     uint8_t _endpoint;
     int default_port = 9998;
@@ -138,7 +158,8 @@ private:
 
     netsocket_inf_t *clients[V16X_MAX_CLIENTS];
 
-    std::atomic<uint32_t> cli_count;
+    //std::atomic<uint32_t> cli_count;
+    static volatile uint32_t cli_count;
     uint32_t clid = 10;
 
     static const mime_map_t mime_types[];
