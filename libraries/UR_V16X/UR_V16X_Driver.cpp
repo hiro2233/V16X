@@ -24,7 +24,7 @@ UR_V16X_Driver::UR_V16X_Driver(UR_V16X &v16x) :
 {
     for (uint8_t j = 0; j < V16X_MAX_ENDPOINTS; j++) {
         for (uint16_t i = 0; i < V16X_MAX_CLIENTS; i++) {
-            _frontend.endpoints[j].clients[i] = nullptr;
+            _frontend.endpoints[j].clients[i] = NULL;
         }
     }
 }
@@ -44,7 +44,7 @@ void UR_V16X_Driver::_copy_client_to_frontend(uint8_t endpoint, int client_id, b
     }
 
     for (uint16_t i = 0; i < V16X_MAX_CLIENTS; i++) {
-        if (_frontend.endpoints[endpoint].clients[i] != nullptr) {
+        if (_frontend.endpoints[endpoint].clients[i] != NULL) {
             if (_frontend.endpoints[endpoint].clients[i]->client_id == client_id) {
                 return;
             }
@@ -52,7 +52,7 @@ void UR_V16X_Driver::_copy_client_to_frontend(uint8_t endpoint, int client_id, b
     }
 
     for (uint16_t i = 0; i < V16X_MAX_CLIENTS; i++) {
-        if (_frontend.endpoints[endpoint].clients[i] == nullptr) {
+        if (_frontend.endpoints[endpoint].clients[i] == NULL) {
             _frontend.endpoints[endpoint].clients[i] = new UR_V16X::clients_t;
             _frontend.endpoints[endpoint].clients[i]->client_id = client_id;
             _frontend.endpoints[endpoint].clients[i]->attached = attached;
@@ -62,7 +62,7 @@ void UR_V16X_Driver::_copy_client_to_frontend(uint8_t endpoint, int client_id, b
             break;
         }
     }
-#if V16X_DEBUG >= 1
+#if V16X_DEBUG >= 2
     SHAL_SYSTEM::printf("+++++COPY FRONTEND Client ID: %d pos %d\n\n", client_id, client_cnt);
     _frontend.print_endpoints_data();
     SHAL_SYSTEM::printf("\n");
@@ -75,8 +75,8 @@ void UR_V16X_Driver::_delete_client_from_frontend(uint8_t endpoint, int client_i
         if (_frontend.endpoints[endpoint].clients[i]) {
             if (_frontend.endpoints[endpoint].clients[i]->client_id == client_id) {
                 delete _frontend.endpoints[endpoint].clients[i];
-                _frontend.endpoints[endpoint].clients[i] = nullptr;
-#if V16X_DEBUG >= 1
+                _frontend.endpoints[endpoint].clients[i] = NULL;
+#if V16X_DEBUG >= 2
                 SHAL_SYSTEM::printf("*****REMOVE Client ID: %d pos %d\n", client_id, i);
                 fflush(stdout);
 #endif
