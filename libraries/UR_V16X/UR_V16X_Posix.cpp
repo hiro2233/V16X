@@ -611,13 +611,13 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *clientaddr)
 #if V16X_DEBUG >= 1
         SHAL_SYSTEM::printf("Directory NO exist: %s\n", req.filename);
 #endif // V16X_DEBUG
-        ffd = open(req.filename, O_BINARY, 0);
+        ffd = open(req.filename, O_FLAG_RBINARY, 0);
     } else {
         // opendir() failed for some other reason.
 #if V16X_DEBUG >= 1
         SHAL_SYSTEM::printf("Directory FAILED: %s\n", req.filename);
 #endif // V16X_DEBUG
-        ffd = open(req.filename, O_BINARY, 0);
+        ffd = open(req.filename, O_FLAG_RBINARY, 0);
     }
 
     struct stat sbuf;
@@ -1376,9 +1376,9 @@ void UR_V16X_Posix::handle_directory_request(int out_fd, int dir_fd, char *filen
 #ifdef __MINGW32__
         char fname[256] = {0};
         sprintf(fname, "%s%s", filename, dp->d_name);
-        ffd = open(fname, O_BINARY, 0);
+        ffd = open(fname, O_FLAG_RBINARY, 0);
 #else
-        ffd = openat(dir_fd, dp->d_name, O_BINARY);
+        ffd = openat(dir_fd, dp->d_name, O_FLAG_RBINARY);
 #endif // __MINGW32__
         if (ffd == -1) {
             perror(dp->d_name);

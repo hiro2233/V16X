@@ -67,6 +67,12 @@
 #include <sys/socket.h>
 #endif
 
+#if defined(__unix__) || defined(__MSYS__)
+#define O_FLAG_RBINARY   O_RDONLY
+#else
+#define O_FLAG_RBINARY   O_BINARY
+#endif
+
 #define MAX_LISTEN  1000  /* max connections */
 #define MAX_BUFF 2048
 #define PROCESS_EVENT_INTERVAL 2000 // Time in ms
