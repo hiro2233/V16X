@@ -255,12 +255,12 @@ inline unsigned char UR_Crypton_Native::_b64_lookup(char c) {
 
 /* Hash a single 512-bit block. This is the core of the algorithm. */
 
-void UR_Crypton_Native::_SHA1_Transform(u_int32_t state[5], const unsigned char buffer[64])
+void UR_Crypton_Native::_SHA1_Transform(uint32_t state[5], const unsigned char buffer[64])
 {
-    u_int32_t a, b, c, d, e;
+    uint32_t a, b, c, d, e;
     typedef union {
         unsigned char c[64];
-        u_int32_t l[16];
+        uint32_t l[16];
     } CHAR64LONG16;
 #ifdef SHA1HANDSOFF
     CHAR64LONG16 block[1];  /* use array to appear as a pointer */
@@ -271,7 +271,7 @@ void UR_Crypton_Native::_SHA1_Transform(u_int32_t state[5], const unsigned char 
      * And the result is written through.  I threw a "const" in, hoping
      * this will cause a diagnostic.
      */
-    CHAR64LONG16* block = (const CHAR64LONG16*)buffer;
+    CHAR64LONG16* block = (CHAR64LONG16*)buffer;
 #endif
     /* Copy context->state[] to working vars */
     a = state[0];
@@ -329,10 +329,10 @@ void UR_Crypton_Native::_SHA1_Init(SHA_CTX* context)
 
 /* Run your data through this. */
 
-void UR_Crypton_Native::_SHA1_Update(SHA_CTX* context, const unsigned char* data, u_int32_t len)
+void UR_Crypton_Native::_SHA1_Update(SHA_CTX* context, const unsigned char* data, uint32_t len)
 {
-    u_int32_t i;
-    u_int32_t j;
+    uint32_t i;
+    uint32_t j;
 
     j = context->count[0];
     if ((context->count[0] += len << 3) < j)
@@ -369,7 +369,7 @@ void UR_Crypton_Native::_SHA1_Final(unsigned char digest[20], SHA_CTX* context)
 
     for (i = 0; i < 2; i++)
     {
-	u_int32_t t = context->count[i];
+	uint32_t t = context->count[i];
 	int j;
 
 	for (j = 0; j < 4; t >>= 8, j++)

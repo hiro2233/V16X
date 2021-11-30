@@ -20,7 +20,7 @@
 
 #include <UR_V16X/UR_V16X.h>
 
-#define UR_CRYPTON_MAX_BACKENDS 1
+#define UR_CRYPTON_MAX_BACKENDS 2
 
 class UR_Crypton_Backend;
 
@@ -66,7 +66,7 @@ public:
 
 private:
 
-    UR_Crypton_Backend *_backends[UR_CRYPTON_MAX_BACKENDS];
+    UR_Crypton_Backend *_backends[UR_CRYPTON_MAX_BACKENDS] = {NULL};
     uint8_t _backend_count;
     bool _backends_configuring:1;
 

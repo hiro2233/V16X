@@ -23,7 +23,8 @@
 #include "UR_Crypton_Native.h"
 #include "UR_Crypton_Openssl.h"
 
-UR_Crypton::UR_Crypton()
+UR_Crypton::UR_Crypton() :
+    _backend_count(0)
 {}
 
 void UR_Crypton::configure(ProcessMode process_mode)
@@ -53,7 +54,9 @@ void UR_Crypton::_configure_backends(ProcessMode process_mode)
     _configure_backends();
 
     for (uint8_t i = 0; i < _backend_count; i++) {
-        _backends[i]->init_process();
+        if (_backends[i] != NULL) {
+            _backends[i]->init_process();
+        }
     }
 }
 

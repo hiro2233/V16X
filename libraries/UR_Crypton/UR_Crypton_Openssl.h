@@ -23,6 +23,7 @@
 #include "UR_Crypton.h"
 #include "UR_Crypton_Backend.h"
 
+#if (CRYPTON_TYPE == CRYPTON_OPENSSL)
 #include <openssl/evp.h>
 #include <openssl/err.h>
 #include <openssl/ssl.h>
@@ -30,6 +31,7 @@
 #include <openssl/bio.h> /* base64 encode/decode */
 #include <openssl/md5.h> /* md5 hash */
 #include <openssl/sha.h> /* sha1 hash */
+#endif
 
 class UR_Crypton_Openssl : public UR_Crypton_Backend
 {

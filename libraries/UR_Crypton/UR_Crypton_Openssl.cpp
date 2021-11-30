@@ -20,6 +20,8 @@
 
 #include "UR_Crypton_Openssl.h"
 
+#if (CRYPTON_TYPE == CRYPTON_OPENSSL)
+
 UR_Crypton_Openssl::UR_Crypton_Openssl(UR_Crypton &ur_crypton) :
     UR_Crypton_Backend(ur_crypton)
 {
@@ -127,3 +129,5 @@ void UR_Crypton_Openssl::sha1_apply(const unsigned char* src, unsigned char* dig
     SHA1_Update(&shactx, src, strlen((const char*)src));
     SHA1_Final(digest, &shactx);
 }
+
+#endif

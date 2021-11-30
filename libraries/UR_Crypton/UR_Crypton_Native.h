@@ -42,8 +42,8 @@ public:
 
 private:
     typedef struct __SHA_CTX_t {
-        u_int32_t state[5];
-        u_int32_t count[2];
+        uint32_t state[5];
+        uint32_t count[2];
         unsigned char buffer[64];
     } SHA_CTX;
 
@@ -61,8 +61,8 @@ private:
     int _b64_dec_len(char * input, int inputLen);
 
     // SHA1 functions.
-    void _SHA1_Transform(u_int32_t state[5], const unsigned char buffer[64]);
+    void _SHA1_Transform(uint32_t state[5], const unsigned char buffer[64]);
     void _SHA1_Init(SHA_CTX* context);
-    void _SHA1_Update(SHA_CTX* context, const unsigned char* data, u_int32_t len);
+    void _SHA1_Update(SHA_CTX* context, const unsigned char* data, uint32_t len);
     void _SHA1_Final(unsigned char digest[20], SHA_CTX* context);
 };
