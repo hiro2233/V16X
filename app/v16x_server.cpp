@@ -18,6 +18,9 @@
  */
 
 #include "v16x_server.h"
+#include <getopt.h>
+
+UR_V16X V16X_server::v16x;
 
 const char msg[] = {"V16X Server, HTTP I/O realtime hybrid nanoservices server.\n" \
                     "Copyright (c) 2019,2020 Hiroshi Takey F. <htakey@gmail.com>\n" \
@@ -34,7 +37,8 @@ void V16X_server::fire_process(void)
     while(!sig_evt) {
         v16x.update();
         if (!sig_evt) {
-            SHAL_SYSTEM::run_thread_process(v16x);
+            SHAL_SYSTEM::run_thread_process(FUNCTOR_BIND_MEMBER(&V16X_server::fire_proc_v16x, void));
+            fflush(stdout);
         }
     }
     SHAL_SYSTEM::printf("[ Exit fire process ]\n");
@@ -85,9 +89,6 @@ void V16X_server::configure()
     v16x.set_bindport(bindport);
     v16x.init();
 
-    SHAL_SYSTEM::init();
-    SHAL_SYSTEM::run_thread_process(FUNCTOR_BIND_MEMBER(&V16X_server::fire_process, void));
-
     SHAL_SYSTEM::printf("Server started\n");
     fflush(stdout);
 }
@@ -96,4 +97,9 @@ void V16X_server::loop()
 {
     v16x.print_endpoints_data();
     SHAL_SYSTEM::delay_sec(10);
+}
+
+void V16X_server::fire_proc_v16x()
+{
+    v16x.fire_process();
 }

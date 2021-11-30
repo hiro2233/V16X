@@ -39,10 +39,11 @@ public:
     // shutdown all system
     void server_shutdown();
     void printhelp();
+    void fire_proc_v16x();
 
 private:
 
-    UR_V16X v16x;
+    static UR_V16X v16x;
     int bindport;
     char *bindaddr;
 };
