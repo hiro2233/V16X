@@ -344,7 +344,8 @@ void UR_V16X_Posix::shuttdown()
 
 void UR_V16X_Posix::fire_process()
 {
-    while (pthread_mutex_trylock(&process_mutex) == 0) {
+    if (pthread_mutex_trylock(&process_mutex) == 0) {
+        return;
     }
 
     netsocket_inf_t *netsocket_info = _get_next_unattached_client();
