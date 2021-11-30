@@ -28,6 +28,32 @@
 #include <signal.h>
 #include <stdarg.h>
 
+#if defined(__WIN32__)
+
+void usleep(long usec)
+{
+/*
+    struct timeval tv;
+    fd_set dummy;
+    SOCKET s = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+    FD_ZERO(&dummy);
+    FD_SET(s, &dummy);
+    tv.tv_sec = usec/1000000L;
+    tv.tv_usec = usec%1000000L;
+    select(0, 0, 0, &dummy, &tv);
+*/
+
+	LARGE_INTEGER perfCnt_time, start_time, now_time;
+
+	QueryPerformanceFrequency(&perfCnt_time);
+	QueryPerformanceCounter(&start_time);
+
+	do {
+		QueryPerformanceCounter((LARGE_INTEGER*) &now_time);
+	} while ((now_time.QuadPart - start_time.QuadPart) / float(perfCnt_time.QuadPart) * 1000 * 1000 < usec);
+}
+#endif // defined(__WIN32__)
+
 void signal_handler(int sig)
 {
     char msg[10];
@@ -49,7 +75,7 @@ void signal_handler(int sig)
 #if SHAL_DEBUG >= 1
     printf("Signal %s received, Shutting down V16X system.\n", msg);
     fflush(stdout);
-#endif // SHAL_DEBUG
+#endif
     sig_evt = 1;
     SHAL_SYSTEM::system_shutdown();
 }
@@ -58,7 +84,7 @@ namespace SHAL_SYSTEM {
 
     MemberProc _timer_proc[MAX_TIMER_PROCS];
     uint8_t _num_timer_procs;
-    bool _in_timer_proc;
+    volatile bool _in_timer_proc;
     volatile bool _timer_suspended;
     volatile bool _timer_event_missed;
 
@@ -71,7 +97,10 @@ namespace SHAL_SYSTEM {
     static struct {
         struct timeval start_time;
     } state_tv;
-} // namespace SHAL_SYSTEM
+
+    MemberProc vstdout_proc;
+    std::vector<std::string> vstdout_buf;
+}
 
 bool SHAL_SYSTEM::_isr_timer_running = false;
 
@@ -79,21 +108,37 @@ bool SHAL_SYSTEM::_isr_timer_running = false;
 void SHAL_SYSTEM::system_shutdown()
 {
     sig_evt = 1;
+    _isr_timer_running = false;
+    pthread_join(isr_timer_thread, NULL);
+    pthread_join(run_proc_thread, NULL);
+    delay_sec(1);
 }
 #endif // ENABLE_SYSTEM_SHUTDOWN
 
 void SHAL_SYSTEM::init()
 {
+    if (_isr_timer_running) {
+        printf("system already running\n");
+        return;
+    }
+
+    _in_timer_proc = false;
+    _timer_suspended = false;
+    _timer_event_missed = false;
+    _num_timer_procs = 0;
+    vstdout_buf.clear();
+
     struct sigaction action;
     memset(&action, 0, sizeof(struct sigaction));
     action.sa_handler = signal_handler;
     action.sa_flags = 0;
     sigemptyset(&action.sa_mask);
+#ifndef __WIN32__
     sigaction(SIGINT, &action, NULL);
     sigaction(SIGTERM, &action, NULL);
     sigaction(SIGHUP, &action, NULL);
     sigaction(SIGSEGV, &action, NULL);
-
+#endif
     signal(SIGPIPE, SIG_IGN);
 
     pthread_attr_init(&thread_attr_timer);
@@ -127,7 +172,7 @@ uint64_t SHAL_SYSTEM::get_core_hrdtime()
 
 uint32_t SHAL_SYSTEM::micros32()
 {
-    return get_core_hrdtime();
+    return (uint32_t)get_core_hrdtime();
 }
 
 uint64_t SHAL_SYSTEM::micros64()
@@ -137,7 +182,7 @@ uint64_t SHAL_SYSTEM::micros64()
 
 uint32_t SHAL_SYSTEM::millis32()
 {
-    return round((float)get_core_hrdtime() / 1000.0f);
+    return (uint32_t)round((float)(get_core_hrdtime() / 1000.0f));
 }
 
 uint64_t SHAL_SYSTEM::millis64()
@@ -149,15 +194,16 @@ void SHAL_SYSTEM::panic(const char *errormsg, ...)
 {
     va_list ap;
 
-    fflush(stdout);
     va_start(ap, errormsg);
     vprintf(errormsg, ap);
     va_end(ap);
-    printf("\n");
+
+    fprintf(stdout, "\n");
 
     for(;;) {
+        fflush(stdout);
         SHAL_SYSTEM::delay_sec(1);
-        printf("panic!\n");
+        fprintf(stdout, "panic!\n");
     }
 }
 
@@ -240,15 +286,6 @@ void SHAL_SYSTEM::resume_timer_procs() {
     }
 }
 
-void *SHAL_SYSTEM::_fire_thread_proc(void *args)
-{
-    UR_V16X &v16x = *(UR_V16X*)args;
-    v16x.fire_process();
-
-    pthread_detach(pthread_self());
-    return NULL;
-}
-
 void *SHAL_SYSTEM::_fire_thread_void(void *args)
 {
 #if SHAL_DEBUG >= 1
@@ -281,23 +318,14 @@ void *SHAL_SYSTEM::_fire_thread_member(void *args)
     return NULL;
 }
 
-void SHAL_SYSTEM::run_thread_process(UR_V16X &proc)
-{
-    pthread_create(&run_proc_thread, &thread_attr_run_proc, _fire_thread_proc, (void*)&proc);
-}
-
 void SHAL_SYSTEM::run_thread_process(Proc proc)
 {
-    //Proc *proctmp = new Proc;
-    //*proctmp = proc;
     pthread_create(&run_proc_thread, &thread_attr_run_proc, _fire_thread_void, (void*)proc);
 }
 
 void SHAL_SYSTEM::run_thread_process(MemberProc proc)
 {
-    MemberProc *proctmp = new MemberProc;
-    *proctmp = proc;
-    pthread_create(&run_proc_thread, &thread_attr_run_proc, _fire_thread_member, (void*)proctmp);
+    pthread_create(&run_proc_thread, &thread_attr_run_proc, _fire_thread_member, (void*)&proc);
 }
 
 void SHAL_SYSTEM::delay_ms(uint32_t ms)
@@ -324,17 +352,26 @@ void SHAL_SYSTEM::delay_ms(uint32_t ms)
 
 void SHAL_SYSTEM::delay_sec(uint16_t sec)
 {
-    delay_ms(sec * 1000);
+    sleep(sec);
 }
 
 void SHAL_SYSTEM::printf(const char *printmsg, ...)
 {
     va_list vl;
 
-    fflush(stdout);
     va_start(vl, printmsg);
     vprintf(printmsg, vl);
     va_end(vl);
+    fflush(stdout);
+
+    if (vstdout_buf.size() < 2) {
+        char ctmp[strlen(printmsg) + 2];
+        vsprintf(ctmp, printmsg, vl);
+        vstdout_buf.push_back(ctmp);
+        if (vstdout_proc) {
+            vstdout_proc();
+        }
+    }
 }
 
 const char *SHAL_SYSTEM::get_date()
@@ -345,6 +382,27 @@ const char *SHAL_SYSTEM::get_date()
     struct tm tm = *gmtime(&now);
     strftime(buf, sizeof(buf), "%a, %d %b %Y %H:%M:%S %Z", &tm);
     return buf;
+}
+
+std::vector<std::string> SHAL_SYSTEM::get_vstdout_buf()
+{
+    std::vector<std::string> resstr;
+    resstr.clear();
+    resstr = vstdout_buf;
+    vstdout_buf.clear();
+
+    return resstr;
+}
+
+void SHAL_SYSTEM::set_vstdout_console_clbk(MemberProc proc)
+{
+    if (vstdout_proc == proc) {
+        return;
+    }
+
+    if (!vstdout_proc) {
+        vstdout_proc = proc;
+    }
 }
 
 SHAL_SYSTEM_MAIN()

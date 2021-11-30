@@ -26,16 +26,45 @@
 #pragma once
 
 #include <stdint.h>
-#include <unistd.h>
 #include <pthread.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
 #include <inttypes.h>
 #include <signal.h>
+
+#if defined(__WIN32__)
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <wininet.h>
+#include "signal_win.h"
+#ifndef __GNUC__
+#include "time_win.h"
+#include "unistd_win.h"
+#else
+#include <unistd.h>
+#include <time.h>
+#include <sys/time.h>
+#define sleep(x) Sleep(x * 1000)
+#endif // __GNUC__
+
+#ifdef DLL_EXPORTS
+#define API_EXPORT __declspec(dllexport)
+#else
+#define API_EXPORT
+#endif  // DLL_EXPORTS
+
+#ifndef sleep
+#define sleep(x) Sleep(x * 1000)
+#endif
+
+#else
+#define API_EXPORT
+#include <unistd.h>
 #include <time.h>
 #include <sys/times.h>
 #include <sys/time.h>
+#endif
+
 #include <math.h>
 
 #define STRINGIZEDEF(x) #x
@@ -51,15 +80,12 @@
 #define CRYPTON_OPENSSL 2
 
 #ifndef CRYPTON_TYPE
-#if defined(__unix__) || defined(__MSYS__)
 #define CRYPTON_TYPE CRYPTON_OPENSSL
-#else
-#define CRYPTON_TYPE CRYPTON_NATIVE
-#endif //
 #endif // CRYPTON_TYPE
 
-#include <UR_V16X/UR_V16X.h>
-#include <UR_V16X/utility/functor.h>
+#include <utility/functor.h>
+#include <vector>
+#include <string>
 
 typedef struct __system_argcv_s {
     int argc;
@@ -91,11 +117,9 @@ typedef struct __system_argcv_s {
     } \
     }
 
-#define MAX_TIMER_PROCS 5
+#define MAX_TIMER_PROCS 10
 #define SERVER_VERSION "V16X/1.0.0"
 #define SHAL_DEBUG 0
-
-class UR_V16X;
 
 namespace SHAL_SYSTEM {
 
@@ -111,7 +135,6 @@ namespace SHAL_SYSTEM {
     void suspend_timer_procs();
     void resume_timer_procs();
 
-    void run_thread_process(UR_V16X &proc);
     void run_thread_process(Proc proc);
     void run_thread_process(MemberProc proc);
 
@@ -132,8 +155,14 @@ namespace SHAL_SYSTEM {
     uint32_t millis32();
     uint64_t millis64();
 
+    API_EXPORT
+    std::vector<std::string> get_vstdout_buf();
+
+    API_EXPORT
+    void set_vstdout_console_clbk(MemberProc proc);
+
     extern bool _isr_timer_running;
     extern system_argcv_t system_argcv;
-} // namespace V16X
+}; // namespace SHAL_SYSTEM
 
 extern volatile sig_atomic_t sig_evt;
