@@ -37,7 +37,7 @@ void V16X_server::fire_process(void)
     while(!sig_evt) {
         v16x.update();
         if (!sig_evt) {
-            SHAL_SYSTEM::run_thread_process(FUNCTOR_BIND_MEMBER(&V16X_server::fire_proc_v16x, void));
+            SHAL_SYSTEM::run_thread_process(V16X_server::fire_proc_v16x);
             fflush(stdout);
         }
     }
