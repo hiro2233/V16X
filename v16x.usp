@@ -45,15 +45,29 @@
 				<Option working_dir="htdocs/" />
 				<Option object_output="build/.obj/debug/" />
 				<Option type="1" />
-				<Option compiler="gcc" />
+				<Option compiler="mingw32-gcc" />
 				<Compiler>
 					<Add option="-g" />
+					<Add option="-fno-exceptions" />
+					<Add option="-fsigned-char" />
+					<Add option="-fpermissive" />
+					<Add option="-fno-threadsafe-statics" />
 					<Add option="-D__WXMSW__" />
 					<Add option="-D_FILE_OFFSET_BITS=64" />
 					<Add option="-DwxDEBUG_LEVEL=0" />
 					<Add option="-DLOG4CPP_FIX_ERROR_COLLISION=1" />
 					<Add option="-DBOOST_ERROR_CODE_HEADER_ONLY" />
+					<Add option="-D__MINGW32__" />
+					<Add option="-D__WIN32__" />
+					<Add directory="libraries/UR_V16X/system/missing" />
 				</Compiler>
+				<Linker>
+					<Add option="-static-libstdc++" />
+					<Add option="-static-libgcc" />
+					<Add option="-static" />
+					<Add library="ws2_32" />
+					<Add library="shlwapi" />
+				</Linker>
 			</Target>
 			<Target title="win32_release">
 				<Option platforms="Windows;" />
@@ -61,20 +75,85 @@
 				<Option working_dir="htdocs/" />
 				<Option object_output="build/.obj/release/" />
 				<Option type="1" />
-				<Option compiler="gcc" />
+				<Option compiler="mingw32-gcc" />
 				<Compiler>
+					<Add option="-flto" />
 					<Add option="-O2" />
 					<Add option="-fdata-sections" />
 					<Add option="-ffunction-sections" />
 					<Add option="-fno-exceptions" />
 					<Add option="-fsigned-char" />
+					<Add option="-fno-threadsafe-statics" />
 					<Add option="-D__WXMSW__" />
 					<Add option="-D_FILE_OFFSET_BITS=64" />
 					<Add option="-DwxDEBUG_LEVEL=0" />
 					<Add option="-DLOG4CPP_FIX_ERROR_COLLISION=1" />
 					<Add option="-DBOOST_ERROR_CODE_HEADER_ONLY" />
+					<Add option="-D__MINGW32__" />
+					<Add option="-D__WIN32__" />
+					<Add directory="libraries/UR_V16X/system/missing" />
 				</Compiler>
 				<Linker>
+					<Add option="-flto" />
+					<Add option="-s" />
+					<Add option="-static-libstdc++" />
+					<Add option="-static-libgcc" />
+					<Add option="-static" />
+					<Add option="-Wl,--gc-sections" />
+					<Add library="ws2_32" />
+					<Add library="shlwapi" />
+				</Linker>
+			</Target>
+			<Target title="native_debug">
+				<Option platforms="Windows;" />
+				<Option output="build/debug/v16x" prefix_auto="1" extension_auto="1" />
+				<Option working_dir="htdocs/" />
+				<Option object_output="build/.obj/debug/" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-g" />
+					<Add option="-fno-exceptions" />
+					<Add option="-fsigned-char" />
+					<Add option="-fpermissive" />
+					<Add option="-fno-threadsafe-statics" />
+					<Add option="-D__WXMSW__" />
+					<Add option="-D_FILE_OFFSET_BITS=64" />
+					<Add option="-DwxDEBUG_LEVEL=0" />
+					<Add option="-DLOG4CPP_FIX_ERROR_COLLISION=1" />
+					<Add option="-DBOOST_ERROR_CODE_HEADER_ONLY" />
+					<Add directory="libraries/UR_V16X/system/missing" />
+				</Compiler>
+				<Linker>
+					<Add option="-static-libstdc++" />
+					<Add option="-static-libgcc" />
+					<Add option="-static" />
+				</Linker>
+			</Target>
+			<Target title="native_release">
+				<Option platforms="Windows;" />
+				<Option output="build/release/v16x" prefix_auto="1" extension_auto="1" />
+				<Option working_dir="htdocs/" />
+				<Option object_output="build/.obj/release/" />
+				<Option type="1" />
+				<Option compiler="gcc" />
+				<Compiler>
+					<Add option="-flto" />
+					<Add option="-O2" />
+					<Add option="-fdata-sections" />
+					<Add option="-ffunction-sections" />
+					<Add option="-fno-exceptions" />
+					<Add option="-fsigned-char" />
+					<Add option="-fno-threadsafe-statics" />
+					<Add option="-D__WXMSW__" />
+					<Add option="-D_FILE_OFFSET_BITS=64" />
+					<Add option="-DwxDEBUG_LEVEL=0" />
+					<Add option="-DLOG4CPP_FIX_ERROR_COLLISION=1" />
+					<Add option="-DBOOST_ERROR_CODE_HEADER_ONLY" />
+					<Add directory="libraries/UR_V16X/system/missing" />
+				</Compiler>
+				<Linker>
+					<Add option="-flto" />
 					<Add option="-s" />
 					<Add option="-static-libstdc++" />
 					<Add option="-static-libgcc" />
@@ -90,12 +169,12 @@
 			<Add option="-fpermissive" />
 			<Add option="-D__STDC_FORMAT_MACROS" />
 			<Add option="-DENABLE_SYSTEM_SHUTDOWN" />
-			<Add option="-DCRYPTON_TYPE=CRYPTON_OPENSSL" />
+			<Add option="-DCRYPTON_TYPE=CRYPTON_NATIVE" />
 			<Add directory="libraries" />
+			<Add directory="libraries/UR_V16X" />
 		</Compiler>
 		<Linker>
 			<Add option="-pthread" />
-			<Add library="crypto" />
 		</Linker>
 		<Unit filename="app/main.cpp" />
 		<Unit filename="app/v16x_server.cpp" />
@@ -116,13 +195,47 @@
 		<Unit filename="libraries/UR_V16X/UR_V16X_Driver.h" />
 		<Unit filename="libraries/UR_V16X/UR_V16X_Posix.cpp" />
 		<Unit filename="libraries/UR_V16X/UR_V16X_Posix.h" />
+		<Unit filename="libraries/UR_V16X/system/missing/dirent_win.h">
+			<Option target="win32_debug" />
+			<Option target="win32_release" />
+			<Option target="native_debug" />
+			<Option target="native_release" />
+		</Unit>
+		<Unit filename="libraries/UR_V16X/system/missing/inet_ntop.cpp">
+			<Option target="win32_debug" />
+			<Option target="win32_release" />
+			<Option target="native_debug" />
+			<Option target="native_release" />
+		</Unit>
+		<Unit filename="libraries/UR_V16X/system/missing/inet_ntop.h" />
+		<Unit filename="libraries/UR_V16X/system/missing/netsocket_win.cpp" />
+		<Unit filename="libraries/UR_V16X/system/missing/netsocket_win.h">
+			<Option target="win32_debug" />
+			<Option target="win32_release" />
+			<Option target="native_debug" />
+			<Option target="native_release" />
+		</Unit>
+		<Unit filename="libraries/UR_V16X/system/missing/signal_win.h">
+			<Option target="win32_debug" />
+			<Option target="win32_release" />
+			<Option target="native_debug" />
+			<Option target="native_release" />
+		</Unit>
+		<Unit filename="libraries/UR_V16X/system/missing/time_win.h">
+			<Option target="win32_debug" />
+			<Option target="win32_release" />
+			<Option target="native_debug" />
+			<Option target="native_release" />
+		</Unit>
+		<Unit filename="libraries/UR_V16X/system/missing/unistd_win.h">
+			<Option target="win32_debug" />
+			<Option target="win32_release" />
+			<Option target="native_debug" />
+			<Option target="native_release" />
+		</Unit>
 		<Unit filename="libraries/UR_V16X/system/system.cpp" />
 		<Unit filename="libraries/UR_V16X/system/system.h" />
 		<Unit filename="libraries/UR_V16X/utility/functor.h" />
-		<Extensions>
-			<envvars />
-			<code_completion />
-			<debugger />
-		</Extensions>
+		<Extensions />
 	</Project>
 </UrusStudio_project_file>
