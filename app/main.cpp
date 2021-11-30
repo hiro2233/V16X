@@ -9,7 +9,9 @@ void SHAL_SYSTEM::system_shutdown()
 
 void configure()
 {
+    SHAL_SYSTEM::init();
     v16x_server.configure();
+    SHAL_SYSTEM::run_thread_process(FUNCTOR_BIND(&v16x_server, &V16X_server::fire_process, void));
 }
 
 void loop()
