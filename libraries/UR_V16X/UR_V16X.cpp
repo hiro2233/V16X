@@ -58,7 +58,7 @@ bool UR_V16X::_add_driver(UR_V16X_Driver *driver)
  */
 void UR_V16X::init(void)
 {
-#if defined(_UNIX_) || defined(__MSYS__)
+#if defined(_UNIX_) || defined(__MSYS__) || defined (__MINGW32__)
     ADD_DRIVER(UR_V16X_Posix::create_endpoint(*this));
 #endif
 
@@ -73,7 +73,9 @@ void UR_V16X::init(void)
 void UR_V16X::update(void)
 {
     for (uint8_t i = 0; i < _num_drivers; i++) {
-        drivers[i]->driver_update(i);
+        if (drivers[i]) {
+            drivers[i]->driver_update(i);
+        }
     }
 }
 
