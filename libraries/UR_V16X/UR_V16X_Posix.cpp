@@ -337,9 +337,10 @@ void UR_V16X_Posix::shuttdown()
     }
     close(listenfd);
     pthread_mutex_unlock(&clients_mutex);
-    sig_evt = 1;
+    //sig_evt = 1;
     SHAL_SYSTEM::printf("Shutdown OK V16X posix endpoint: %d\n", _endpoint);
     fflush(stdout);
+    SHAL_SYSTEM::system_shal_shutdown();
 }
 
 void UR_V16X_Posix::fire_process()
