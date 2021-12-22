@@ -84,7 +84,7 @@
 #endif // CRYPTON_TYPE
 
 #include <utility/functor.h>
-#include <vector>
+#include <array>
 #include <string>
 
 typedef struct __system_argcv_s {
@@ -92,8 +92,25 @@ typedef struct __system_argcv_s {
     char** argv;
 } system_argcv_t;
 
+typedef std::string string;
+
 #define NORETURN __attribute__ ((noreturn))
 #define FMT_PRINTF(a,b) __attribute__((format(printf, a, b)))
+
+#ifdef __GNUC__
+ #define WARN_IF_UNUSED __attribute__ ((warn_unused_result))
+
+ #define GCC_VERSION (__GNUC__ * 10000 \
+                     + __GNUC_MINOR__ * 100 \
+                     + __GNUC_PATCHLEVEL__)
+
+#else
+ #define WARN_IF_UNUSED
+#endif
+
+#if !(defined(__GXX_EXPERIMENTAL_CXX0X__) || __cplusplus >= 201103L)
+# define constexpr const
+#endif
 
 #ifndef SHAL_MAIN
 #define SHAL_MAIN main
@@ -116,6 +133,9 @@ typedef struct __system_argcv_s {
         return 0; \
     } \
     }
+
+#define SHAL_SYSTEM_LIB() \
+    volatile sig_atomic_t sig_evt = 0; \
 
 #define MAX_TIMER_PROCS 10
 #define SERVER_VERSION "V16X/1.0.0"
@@ -143,6 +163,7 @@ namespace SHAL_SYSTEM {
     void *_fire_thread_void(void *args);
     void *_fire_thread_member(void *args);
     void system_shutdown();
+    void system_shal_shutdown();
     void delay_sec(uint16_t sec);
     void delay_ms(uint32_t ms);
     void printf(const char *errormsg, ...) FMT_PRINTF(1, 2);
@@ -156,12 +177,12 @@ namespace SHAL_SYSTEM {
     uint64_t millis64();
 
     API_EXPORT
-    std::vector<std::string> get_vstdout_buf();
+    string* get_vstdout_buf();
 
     API_EXPORT
     void set_vstdout_console_clbk(MemberProc proc);
 
-    extern bool _isr_timer_running;
+    extern volatile bool _isr_timer_running;
     extern system_argcv_t system_argcv;
 }; // namespace SHAL_SYSTEM
 

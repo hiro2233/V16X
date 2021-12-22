@@ -27,9 +27,11 @@
 
 #include <signal.h>
 #include <stdarg.h>
+#include <memory>
+#include <thread>
+#include <atomic>
 
 #if defined(__WIN32__)
-
 void usleep(long usec)
 {
 /*
@@ -43,14 +45,15 @@ void usleep(long usec)
     select(0, 0, 0, &dummy, &tv);
 */
 
-	LARGE_INTEGER perfCnt_time, start_time, now_time;
+    LARGE_INTEGER perfCnt_time, start_time, now_time;
 
-	QueryPerformanceFrequency(&perfCnt_time);
-	QueryPerformanceCounter(&start_time);
+    QueryPerformanceFrequency(&perfCnt_time);
+    QueryPerformanceCounter(&start_time);
 
-	do {
-		QueryPerformanceCounter((LARGE_INTEGER*) &now_time);
-	} while ((now_time.QuadPart - start_time.QuadPart) / float(perfCnt_time.QuadPart) * 1000 * 1000 < usec);
+    do {
+        QueryPerformanceCounter((LARGE_INTEGER*) &now_time);
+    } while ((now_time.QuadPart - start_time.QuadPart) / float(perfCnt_time.QuadPart) * 1000 * 1000 < usec);
+
 }
 #endif // defined(__WIN32__)
 
@@ -82,7 +85,7 @@ void signal_handler(int sig)
 
 namespace SHAL_SYSTEM {
 
-    MemberProc _timer_proc[MAX_TIMER_PROCS];
+    static MemberProc _timer_proc[MAX_TIMER_PROCS] = {NULL};
     uint8_t _num_timer_procs;
     volatile bool _in_timer_proc;
     volatile bool _timer_suspended;
@@ -94,24 +97,35 @@ namespace SHAL_SYSTEM {
     pthread_t isr_timer_thread;
     pthread_attr_t thread_attr_timer;
 
+    pthread_mutex_t getvstdout_mutex = PTHREAD_MUTEX_INITIALIZER;
+
     static struct {
         struct timeval start_time;
     } state_tv;
 
-    MemberProc vstdout_proc;
-    std::vector<std::string> vstdout_buf;
+    static MemberProc vstdout_proc = NULL;
+    string vstdout_buf[20];
+    string strdatres[20];
+    volatile uint16_t vstdout_buf_index = 0;
 }
 
-bool SHAL_SYSTEM::_isr_timer_running = false;
+volatile bool SHAL_SYSTEM::_isr_timer_running = false;
 
-#ifndef ENABLE_SYSTEM_SHUTDOWN
-void SHAL_SYSTEM::system_shutdown()
+void SHAL_SYSTEM::system_shal_shutdown()
 {
+    pthread_mutex_unlock(&getvstdout_mutex);
     sig_evt = 1;
     _isr_timer_running = false;
     pthread_join(isr_timer_thread, NULL);
     pthread_join(run_proc_thread, NULL);
     delay_sec(1);
+    SHAL_SYSTEM::printf("Shutdown system OK\n");
+}
+
+#ifndef ENABLE_SYSTEM_SHUTDOWN
+void SHAL_SYSTEM::system_shutdown()
+{
+    system_shal_shutdown();
 }
 #endif // ENABLE_SYSTEM_SHUTDOWN
 
@@ -126,7 +140,10 @@ void SHAL_SYSTEM::init()
     _timer_suspended = false;
     _timer_event_missed = false;
     _num_timer_procs = 0;
-    vstdout_buf.clear();
+
+    for (uint16_t i = 0; i < 20; i++) {
+        vstdout_buf[i] = "";
+    }
 
     struct sigaction action;
     memset(&action, 0, sizeof(struct sigaction));
@@ -197,14 +214,37 @@ void SHAL_SYSTEM::panic(const char *errormsg, ...)
     va_start(ap, errormsg);
     vprintf(errormsg, ap);
     va_end(ap);
-
+#ifndef SHAL_LIB
     fprintf(stdout, "\n");
+#endif // SHAL_LIB
 
     for(;;) {
+        if (sig_evt) {
+            break;
+        }
+#ifndef SHAL_LIB
         fflush(stdout);
+#endif // SHAL_LIB
         SHAL_SYSTEM::delay_sec(1);
+        while (pthread_mutex_trylock(&getvstdout_mutex) == 0) {
+            SHAL_SYSTEM::delay_ms(1);
+        }
+#ifndef SHAL_LIB
         fprintf(stdout, "panic!\n");
+#endif // SHAL_LIB
+        if (vstdout_buf_index < 10) {
+            char ctmp[strlen(errormsg) + 2];
+            vsprintf(ctmp, errormsg, ap);
+            vstdout_buf[vstdout_buf_index] = ctmp;
+            vstdout_buf_index++;
+
+            if (vstdout_proc) {
+                vstdout_proc();
+            }
+        }
+        pthread_mutex_unlock(&getvstdout_mutex);
     }
+
 }
 
 void *SHAL_SYSTEM::_fire_isr_timer(void *arg)
@@ -222,14 +262,20 @@ void *SHAL_SYSTEM::_fire_isr_timer(void *arg)
             last = millis32();
             _timer_event();
         }
-        delay_ms(1);
+#if defined(__WIN32__)
+        Sleep(2);
+#else
+        delay_ms(2);
+#endif
     }
 
     _isr_timer_running = false;
 #if SHAL_DEBUG >= 1
     printf("isr timer stoped!\n");
 #endif // SHAL_DEBUG
+#ifndef SHAL_LIB
     fflush(stdout);
+#endif // SHAL_LIB
 
     return NULL;
 }
@@ -352,7 +398,7 @@ void SHAL_SYSTEM::delay_ms(uint32_t ms)
 
 void SHAL_SYSTEM::delay_sec(uint16_t sec)
 {
-    sleep(sec);
+    delay_ms(sec * 1000);
 }
 
 void SHAL_SYSTEM::printf(const char *printmsg, ...)
@@ -362,16 +408,25 @@ void SHAL_SYSTEM::printf(const char *printmsg, ...)
     va_start(vl, printmsg);
     vprintf(printmsg, vl);
     va_end(vl);
+#ifndef SHAL_LIB
     fflush(stdout);
+#endif // SHAL_LIB
 
-    if (vstdout_buf.size() < 2) {
+    while (pthread_mutex_trylock(&getvstdout_mutex) == 0) {
+        SHAL_SYSTEM::delay_ms(1);
+    }
+
+    if (vstdout_buf_index < 10) {
         char ctmp[strlen(printmsg) + 2];
         vsprintf(ctmp, printmsg, vl);
-        vstdout_buf.push_back(ctmp);
+        vstdout_buf[vstdout_buf_index] = ctmp;
+        vstdout_buf_index++;
         if (vstdout_proc) {
             vstdout_proc();
         }
     }
+
+    pthread_mutex_unlock(&getvstdout_mutex);
 }
 
 const char *SHAL_SYSTEM::get_date()
@@ -384,14 +439,29 @@ const char *SHAL_SYSTEM::get_date()
     return buf;
 }
 
-std::vector<std::string> SHAL_SYSTEM::get_vstdout_buf()
+string *SHAL_SYSTEM::get_vstdout_buf()
 {
-    std::vector<std::string> resstr;
-    resstr.clear();
-    resstr = vstdout_buf;
-    vstdout_buf.clear();
+    while (pthread_mutex_trylock(&getvstdout_mutex) == 0) {
+        SHAL_SYSTEM::delay_ms(1);
+    }
+    SHAL_SYSTEM::suspend_timer_procs();
 
-    return resstr;
+    for (uint16_t i = 0; i < 20; i++) {
+        strdatres[i] = "";
+    }
+
+    if (vstdout_buf_index > 0) {
+        for (uint16_t i = 0; i < vstdout_buf_index; i++) {
+            strdatres[i] = vstdout_buf[i];
+            vstdout_buf[i] = "";
+        }
+        vstdout_buf_index = 0;
+    }
+
+    SHAL_SYSTEM::resume_timer_procs();
+    pthread_mutex_unlock(&getvstdout_mutex);
+
+    return strdatres;
 }
 
 void SHAL_SYSTEM::set_vstdout_console_clbk(MemberProc proc)
@@ -405,4 +475,8 @@ void SHAL_SYSTEM::set_vstdout_console_clbk(MemberProc proc)
     }
 }
 
+#ifndef SHAL_LIB
 SHAL_SYSTEM_MAIN()
+#else
+SHAL_SYSTEM_LIB()
+#endif // SHAL_LIB
