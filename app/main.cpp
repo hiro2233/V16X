@@ -17,4 +17,8 @@ void configure()
 void loop()
 {
     v16x_server.loop();
+    if (sig_evt) {
+        SHAL_SYSTEM::printf("Shutdown server OK\n");
+        SHAL_SYSTEM::delay_sec(1);
+    }
 }
