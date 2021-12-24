@@ -233,8 +233,12 @@ void SHAL_SYSTEM::panic(const char *errormsg, ...)
         fprintf(stdout, "panic!\n");
 #endif // SHAL_LIB
         if (vstdout_buf_index < 10) {
-            char ctmp[strlen(errormsg) + 2];
+            char ctmp[256] = {0};
+
+            va_start(ap, errormsg);
             vsprintf(ctmp, errormsg, ap);
+            va_end(ap);
+
             vstdout_buf[vstdout_buf_index] = ctmp;
             vstdout_buf_index++;
 
@@ -417,8 +421,12 @@ void SHAL_SYSTEM::printf(const char *printmsg, ...)
     }
 
     if (vstdout_buf_index < 10) {
-        char ctmp[strlen(printmsg) + 2];
+        char ctmp[256] = {0};
+
+        va_start(vl, printmsg);
         vsprintf(ctmp, printmsg, vl);
+        va_end(vl);
+
         vstdout_buf[vstdout_buf_index] = ctmp;
         vstdout_buf_index++;
         if (vstdout_proc) {
@@ -427,6 +435,7 @@ void SHAL_SYSTEM::printf(const char *printmsg, ...)
     }
 
     pthread_mutex_unlock(&getvstdout_mutex);
+
 }
 
 const char *SHAL_SYSTEM::get_date()
