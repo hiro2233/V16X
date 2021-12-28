@@ -40,6 +40,10 @@ void UR_V16X_DeepService::print_query_params(const query_param_t *qparam, uint32
 
 uint32_t UR_V16X_DeepService::parse_query(const char *query, char delimiter, char setter, query_param_t *params, uint32_t max_params)
 {
+    if (strlen(query) == 0) {
+        return 0;
+    }
+
     uint32_t i = 0;
     uint32_t idxcnt = 0;
     char querytmp[strlen(query) + 1] = {0};
