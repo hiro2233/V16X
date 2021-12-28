@@ -140,6 +140,7 @@ void SHAL_SYSTEM::init()
     _timer_suspended = false;
     _timer_event_missed = false;
     _num_timer_procs = 0;
+    getvstdout_mutex = PTHREAD_MUTEX_INITIALIZER;
 
     for (uint16_t i = 0; i < 20; i++) {
         vstdout_buf[i] = "";
@@ -416,12 +417,16 @@ void SHAL_SYSTEM::printf(const char *printmsg, ...)
     fflush(stdout);
 #endif // SHAL_LIB
 
+    if (!vstdout_proc) {
+        return;
+    }
+
     while (pthread_mutex_trylock(&getvstdout_mutex) == 0) {
         SHAL_SYSTEM::delay_ms(1);
     }
 
     if (vstdout_buf_index < 10) {
-        char ctmp[256] = {0};
+        char ctmp[512] = {0};
 
         va_start(vl, printmsg);
         vsprintf(ctmp, printmsg, vl);
