@@ -22,6 +22,14 @@
 #include "UR_V16X_DeepService.h"
 #include <UR_Crypton/UR_Crypton.h>
 
+#if (CRYPTON_TYPE == CRYPTON_OPENSSL)
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+#else
+#define SSL uint16_t
+#define SSL_CTX uint16_t
+#endif
+
 #include <stdarg.h>
 #if !defined(__MINGW32__)
 #include <arpa/inet.h>
@@ -140,10 +148,21 @@ public:
         bool method_get;
         bool keep_alive;
         bool method_head;
+        SSL *ssl;
     } netsocket_inf_t;
+
+    struct sockaddr_in clientaddr;
+
+    SSL_CTX *ctxmain = NULL;
+    SSL *sslmain = NULL;
+    const char *certmain = "cert.pem";
+    const char *keymain = "key.pem";
 
     UR_V16X_Posix(UR_V16X &v16x);
     void update(void) override;
+
+    bool load_certificate(SSL_CTX *ctx, const char *cert, const char *key);
+
     void init(void);
     static UR_V16X_Driver *create_endpoint(UR_V16X &v16x);
     void fire_process() override;

@@ -41,6 +41,26 @@
 
 #define MAGIC_WEBSOCKET_KEY "258EAFA5-E914-47DA-95CA-C5AB0DC85B11"
 
+#ifdef ENABLE_LOG
+#define LOG_FILE	"server.log"
+#define LOG(s) { \
+    FILE *pf=fopen(LOG_FILE, "a"); \
+    fprintf(pf, \
+        "%s\n", s); \
+    fclose(pf); \
+    }
+
+#ifndef stderr
+#define stderr pf
+#endif // stderr
+
+#define ERROR(s) { \
+    LOG(s); \
+    fprintf(stderr, \
+        "%s\n", s); \
+    }
+#endif // ENABLE_LOG
+
 volatile uint32_t UR_V16X_Posix::cli_count = 0;
 UR_Crypton UR_V16X_Posix::ur_crypton;
 
@@ -84,12 +104,34 @@ UR_V16X_Posix::UR_V16X_Posix(UR_V16X &v16x) :
     }
 }
 
+bool UR_V16X_Posix::load_certificate(SSL_CTX *ctx, const char *cert, const char *key)
+{
+#if (CRYPTON_TYPE == CRYPTON_OPENSSL)
+    if(SSL_CTX_use_certificate_file(ctx, cert, SSL_FILETYPE_PEM) <= 0) {
+        ERROR("[error] certificate is invalid");
+        return false;
+    }
+
+    if(SSL_CTX_use_PrivateKey_file(ctx, key, SSL_FILETYPE_PEM) <= 0 ) {
+        ERROR("[error] private key is invalid");
+        return false;
+    }
+
+    if(!SSL_CTX_check_private_key(ctx)) {
+        ERROR("[error] key pair does not match");
+        return false;
+    }
+#endif
+    return true;
+}
+
 void UR_V16X_Posix::init(void)
 {
     SHAL_SYSTEM::printf("Init V16X endpoint: %d\n", _endpoint);
     fflush(stdout);
 
     ur_crypton.init();
+
     cli_count = 0;
 
     while (pthread_mutex_trylock(&clients_mutex) == 0) {
@@ -125,7 +167,6 @@ void UR_V16X_Posix::update(void)
             return;
         }
 
-        struct sockaddr_in clientaddr;
         socklen_t clientlen = sizeof(clientaddr);
 
         int connfd = accept(listenfd, (SA *)&clientaddr, &clientlen);
@@ -188,6 +229,17 @@ void UR_V16X_Posix::update(void)
             return;
         }
 
+#if (CRYPTON_TYPE == CRYPTON_OPENSSL)
+        if (ctxmain != NULL) {
+            sslmain = SSL_new(ctxmain);
+            SSL_set_fd(sslmain, connfd);
+
+            //SSL_accept(sslmain);
+            SSL_set_accept_state(sslmain);
+            //SSL_CTX_set_mode(ctxmain, SSL_MODE_ENABLE_PARTIAL_WRITE);
+        }
+#endif
+
         netsocket_inf_t *netsocket_info = (netsocket_inf_t *)malloc(sizeof(netsocket_inf_t));
         memset(netsocket_info, 0, sizeof(netsocket_inf_t));
 
@@ -199,6 +251,7 @@ void UR_V16X_Posix::update(void)
         netsocket_info->event_stream = false;
         netsocket_info->evtstr_ping = false;
         netsocket_info->event_websocket = false;
+        netsocket_info->ssl = sslmain;
 
         client_slot_add(netsocket_info);
 
@@ -226,6 +279,23 @@ int UR_V16X_Posix::open_listenfd(int port)
     if ((listenfd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         return -1;
     }
+
+#if (CRYPTON_TYPE == CRYPTON_OPENSSL)
+    SSL_library_init();
+    OpenSSL_add_all_algorithms();
+    SSL_load_error_strings();
+    ERR_load_crypto_strings();
+
+    ctxmain = SSL_CTX_new(SSLv23_server_method());
+    SSL_CTX_set_options(ctxmain, SSL_OP_NO_SSLv2);
+    SSL_CTX_set_options(ctxmain, SSL_OP_NO_SSLv3);
+
+    if (!load_certificate(ctxmain, certmain, keymain)) {
+        ctxmain = NULL;
+    }
+
+    //SSL_set_accept_state(ctxmain);
+#endif
 
     /* Reuse port address */
     if (setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, (const char *)&optval , sizeof(int)) < 0) {
@@ -275,6 +345,10 @@ void UR_V16X_Posix::client_slot_add(netsocket_inf_t *cl)
 
             memcpy(clients[i], cl, sizeof(netsocket_inf_t));
             memcpy(&clients[i]->clientaddr, &cl->clientaddr, sizeof(sockaddr_in));
+            clients[i]->ssl = NULL;
+            if (cl->ssl != NULL) {
+                clients[i]->ssl = cl->ssl;
+            }
             break;
         }
     }
@@ -426,7 +500,7 @@ bool UR_V16X_Posix::poll_in(int fd, uint32_t timeout_ms)
     tv.tv_sec = timeout_ms / 1000;
     tv.tv_usec = (timeout_ms % 1000) * 1000UL;
 
-    if (select(fd+1, &fds, NULL, NULL, &tv) != 1) {
+    if (select(FD_SETSIZE, &fds, NULL, NULL, &tv) != 1) {
         return false;
     }
 
@@ -1267,7 +1341,7 @@ void UR_V16X_Posix::serve_static(int out_fd, int in_fd, struct sockaddr_in *c_ad
 #endif // V16X_DEBUG
 
     while(offsettmp < total_size) {
-#if defined(__MSYS__) || defined(__MINGW32__)
+#if defined(__MSYS__) || defined(__MINGW32__) || (CRYPTON_TYPE == CRYPTON_OPENSSL)
         //if (poll_in(out_fd, UPDATE_POLLIN_INTERVAL)) {
         lseek(in_fd, offsettmp, SEEK_SET);
 
@@ -1440,9 +1514,36 @@ ssize_t UR_V16X_Posix::io_data_read(data_io_t *data_iop, char *usrbuf, size_t ma
 {
     memset(data_iop->io_buf, '\0', MAX_BUFF);
     memset(usrbuf, '\0', maxlen);
-    data_iop->io_cnt = recv(data_iop->io_fd, data_iop->io_buf, MAX_BUFF, MSG_DONTWAIT);
+    data_iop->io_cnt = 0;
+
+    netsocket_inf_t *client = _get_client(data_iop->io_fd);
+
+    int fd = data_iop->io_fd;
+#if (CRYPTON_TYPE == CRYPTON_OPENSSL)
+    if (client) {
+        if (client->ssl != NULL) {
+            data_iop->io_cnt = SSL_read(client->ssl, data_iop->io_buf, MAX_BUFF - 1);
+            fd = SSL_get_fd(client->ssl);
+#if V16X_DEBUG >= 2
+            SHAL_SYSTEM::printf("----SSL FD: %d\n", fd);
+#endif // V16X_DEBUG
+        }
+    }
+#endif
+
+    if (data_iop->io_cnt <= 0) {
+        data_iop->io_cnt = recv(fd, data_iop->io_buf, MAX_BUFF, MSG_DONTWAIT);
+    }
+
 #if V16X_DEBUG >= 99
-    SHAL_SYSTEM::printf("%sfunct %s 2 cnt:%s %d buf: %s\n", COLOR_PRINTF_RED(0), __func__, COLOR_PRINTF_RESET, data_iop->io_cnt, data_iop->io_buf);
+    SHAL_SYSTEM::printf("%sfunct-io %s 2 cnt:%s %d buf: %s\n", COLOR_PRINTF_RED(0), __func__, COLOR_PRINTF_RESET, data_iop->io_cnt, data_iop->io_buf);
+/*
+    SHAL_SYSTEM::printf("**********DATA INIT:\n\n");
+    for (uint16_t i = 0; i < data_iop->io_cnt; i++) {
+        SHAL_SYSTEM::printf("[0x%02x] ", (uint8_t)data_iop->io_buf[i]);
+    }
+    SHAL_SYSTEM::printf("\n**********DATA END:\n\n");
+*/
 #endif // V16X_DEBUG
     if (data_iop->io_cnt > 0) {
         memcpy(usrbuf, data_iop->io_buf, data_iop->io_cnt);
@@ -1450,7 +1551,7 @@ ssize_t UR_V16X_Posix::io_data_read(data_io_t *data_iop, char *usrbuf, size_t ma
 
     if ((errno == EAGAIN) || (errno == ETIMEDOUT)) {
 #if V16X_DEBUG >= 1
-        SHAL_SYSTEM::printf("%sfunct %s 4 cnt:%s %d buf: %s\n", COLOR_PRINTF_RED(0), __func__, COLOR_PRINTF_RESET, data_iop->io_cnt, data_iop->io_buf);
+        SHAL_SYSTEM::printf("%sfunct-io %s 4 cnt:%s %d buf: %s\n", COLOR_PRINTF_RED(0), __func__, COLOR_PRINTF_RESET, data_iop->io_cnt, data_iop->io_buf);
 #endif // V16X_DEBUG
         *closed = 1;
         return -1;
@@ -1458,11 +1559,12 @@ ssize_t UR_V16X_Posix::io_data_read(data_io_t *data_iop, char *usrbuf, size_t ma
 
     if ((data_iop->io_cnt <= 0) || (errno == EINTR) || (errno == ECONNRESET) || (errno == EPIPE)) {
 #if V16X_DEBUG >= 1
-        SHAL_SYSTEM::printf("%sfunct %s 3 cnt:%s %d - error: %d\n", COLOR_PRINTF_PURPLE(0), __func__, COLOR_PRINTF_RESET, data_iop->io_cnt, errno);
+        SHAL_SYSTEM::printf("%sfunct-io %s 3 cnt:%s %d - error: %d\n", COLOR_PRINTF_PURPLE(0), __func__, COLOR_PRINTF_RESET, data_iop->io_cnt, errno);
 #endif // V16X_DEBUG
         *closed = 1;
         return -1;
     }
+
 
     return data_iop->io_cnt;
 }
@@ -1500,12 +1602,29 @@ ssize_t UR_V16X_Posix::writen(int fd, const void *usrbuf, size_t n)
 
     netsocket_inf_t *client = _get_client(fd);
     if (client == NULL) {
+#if V16X_DEBUG >= 2
         SHAL_SYSTEM::printf("\n\n\tfunct %s WRITEN ERROR: %d on fd: %d!!!\n\n", __func__, errno, fd);
+#endif
         return -1;
     }
 
     clientlen = sizeof(struct sockaddr);
     struct sockaddr addr = *(struct sockaddr*)&client->clientaddr;
+
+    if (client->ssl == NULL) {
+#if V16X_DEBUG >= 2
+        SHAL_SYSTEM::printf("\n\n\tfunct %s SSL ERROR: %d on fd: %d!!!\n\n", __func__, errno, fd);
+        //return -1;
+#endif // V16X_DEBUG
+    }
+
+#if (CRYPTON_TYPE == CRYPTON_OPENSSL)
+    if (client->ssl != NULL) {
+        n = SSL_write(client->ssl, bufp, nleft);
+        return n;
+    }
+#endif
+
     while (nleft > 0) {
         if ((nwritten = sendto(fd, bufp, nleft, 0, &addr, clientlen)) <= 0) {
         //if ((nwritten = write(fd, bufp, nleft)) <= 0) {
