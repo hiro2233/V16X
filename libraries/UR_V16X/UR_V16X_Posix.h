@@ -151,8 +151,6 @@ public:
         SSL *ssl;
     } netsocket_inf_t;
 
-    struct sockaddr_in clientaddr;
-
     SSL_CTX *ctxmain = NULL;
     SSL *sslmain = NULL;
     const char *certmain = "cert.pem";
@@ -178,13 +176,15 @@ private:
     char default_addr[16];
     int listenfd;
 
-    pthread_mutex_t clients_mutex = PTHREAD_MUTEX_INITIALIZER;
-    pthread_mutex_t process_mutex = PTHREAD_MUTEX_INITIALIZER;
+    static pthread_mutex_t clients_mutex;
+    static pthread_mutex_t process_mutex;
+    static pthread_mutexattr_t process_mutex_attr;
+    static pthread_mutexattr_t clients_mutex_attr;
 
     netsocket_inf_t *clients[V16X_MAX_CLIENTS];
 
     //std::atomic<uint32_t> cli_count;
-    static volatile uint32_t cli_count;
+    volatile uint32_t cli_count;
     uint32_t clid = 10;
 
     static const mime_map_t mime_types[];

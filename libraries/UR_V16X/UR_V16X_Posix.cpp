@@ -61,8 +61,30 @@
     }
 #endif // ENABLE_LOG
 
-volatile uint32_t UR_V16X_Posix::cli_count = 0;
+pthread_mutex_t tmpmtxunlock;
+pthread_mutex_t tmpmtxlock;
+
+#define THREAD_TRY_LOCK_BLOCK(_thr) \
+    while (pthread_mutex_trylock(&_thr) != 0) \
+    {}
+/*
+    extern pthread_mutex_t tmpmtxlock; \
+    tmpmtxlock = _thr
+*/
+
+
+#define THREAD_UNLOCK(_thr) \
+    pthread_mutex_unlock(&_thr)
+/*
+    extern pthread_mutex_t tmpmtxunlock; \
+    tmpmtxunlock = _thr
+*/
+
 UR_Crypton UR_V16X_Posix::ur_crypton;
+pthread_mutex_t UR_V16X_Posix::clients_mutex;
+pthread_mutex_t UR_V16X_Posix::process_mutex;
+pthread_mutexattr_t UR_V16X_Posix::process_mutex_attr;
+pthread_mutexattr_t UR_V16X_Posix::clients_mutex_attr;
 
 const UR_V16X_Posix::mime_map_t UR_V16X_Posix::mime_types[] = {
     {".css", "text/css;charset=UTF-8"},
@@ -130,18 +152,25 @@ void UR_V16X_Posix::init(void)
     SHAL_SYSTEM::printf("Init V16X endpoint: %d\n", _endpoint);
     fflush(stdout);
 
+    pthread_mutexattr_init(&process_mutex_attr);
+    pthread_mutexattr_settype(&process_mutex_attr, PTHREAD_MUTEX_ERRORCHECK);
+    pthread_mutex_init(&process_mutex, &process_mutex_attr);
+
+    pthread_mutexattr_init(&clients_mutex_attr);
+    pthread_mutexattr_settype(&clients_mutex_attr, PTHREAD_MUTEX_ERRORCHECK);
+    pthread_mutex_init(&clients_mutex, &clients_mutex_attr);
+
     ur_crypton.init();
 
     cli_count = 0;
 
-    while (pthread_mutex_trylock(&clients_mutex) == 0) {
-    }
+    THREAD_TRY_LOCK_BLOCK(clients_mutex);
 
     for (uint16_t i = 0; i < V16X_MAX_CLIENTS; ++i) {
         clients[i] = NULL;
     }
 
-    pthread_mutex_unlock(&clients_mutex);
+    THREAD_UNLOCK(clients_mutex);
 
 #ifdef __MINGW32__
     windows_socket_start();
@@ -167,9 +196,13 @@ void UR_V16X_Posix::update(void)
             return;
         }
 
-        socklen_t clientlen = sizeof(clientaddr);
+        struct sockaddr_in clientaddrin;
+        socklen_t clientlen = sizeof(clientaddrin);
 
-        int connfd = accept(listenfd, (SA *)&clientaddr, &clientlen);
+        int connfd = accept(listenfd, (SA *)&clientaddrin, &clientlen);
+        if (connfd < 0) {
+            return;
+        }
 
         SHAL_SYSTEM::printf("Waiting connection for client #%d\n\n", (unsigned int)cli_count + 1);
 
@@ -184,36 +217,33 @@ void UR_V16X_Posix::update(void)
         timeout.tv_sec = 9;
         timeout.tv_usec = 0;
 
-        if (setsockopt(connfd, SOL_SOCKET, SO_RCVTIMEO, (char *)&timeout, sizeof(timeout)) < 0) {
+        if (setsockopt(connfd, SOL_SOCKET, SO_RCVTIMEO, (void *)&timeout, sizeof(timeout)) < 0) {
             //SHAL_SYSTEM::panic("setsockopt SO_RCVTIMEO failed\n");
         }
 
-        if (setsockopt(connfd, SOL_SOCKET, SO_SNDTIMEO, (char *)&timeout, sizeof(timeout)) < 0) {
+        if (setsockopt(connfd, SOL_SOCKET, SO_SNDTIMEO, (void *)&timeout, sizeof(timeout)) < 0) {
             //SHAL_SYSTEM::panic("setsockopt SO_SNDTIMEO failed\n");
         }
 
-        setsockopt(connfd, IPPROTO_TCP, TCP_NODELAY, (const char*)&one, sizeof(one));
-        //setsockopt(connfd, SOL_SOCKET, SO_REUSEADDR, (const void*)&one, sizeof(one));
+        setsockopt(connfd, IPPROTO_TCP, TCP_NODELAY, (const void*)&one, sizeof(one));
+        setsockopt(connfd, SOL_SOCKET, SO_REUSEADDR, (const void*)&one, sizeof(one));
 
-        setsockopt(connfd, SOL_SOCKET, SO_KEEPALIVE, (const char*)&alive_one, sizeof(alive_one)); // keep alive?
+        setsockopt(connfd, SOL_SOCKET, SO_KEEPALIVE, (const void*)&alive_one, sizeof(alive_one)); // keep alive?
 
 #ifndef _WIN32
-        setsockopt(connfd, IPPROTO_TCP, TCP_KEEPIDLE, (const char*)&delay_idle_tcp, sizeof(delay_idle_tcp)); // delay idle
+        setsockopt(connfd, IPPROTO_TCP, TCP_KEEPIDLE, (const void*)&delay_idle_tcp, sizeof(delay_idle_tcp)); // delay idle
 #endif // _WIN32
-        setsockopt(connfd, SOL_TCP, TCP_KEEPCNT, (const char*)&retries_tcp, sizeof(retries_tcp)); // retries
-        setsockopt(connfd, IPPROTO_TCP, TCP_KEEPINTVL, (const char*)&interval_tcp, sizeof(interval_tcp)); // interval
-        setsockopt(connfd, SOL_TCP, TCP_USER_TIMEOUT, (const char*)&timeout_tcp, sizeof(timeout_tcp));
+        setsockopt(connfd, IPPROTO_TCP, TCP_KEEPCNT, (const void*)&retries_tcp, sizeof(retries_tcp)); // retries
+        setsockopt(connfd, IPPROTO_TCP, TCP_KEEPINTVL, (const void*)&interval_tcp, sizeof(interval_tcp)); // interval
+        setsockopt(connfd, IPPROTO_TCP, TCP_USER_TIMEOUT, (const void*)&timeout_tcp, sizeof(timeout_tcp));
 
-        if (connfd < 0) {
-            return;
-        }
         // Here we catch flooding connections and will wait until
         // timeout occurs on the fire process thread side.
         // Be careful when changing clients numbers connections and times,
         // wrong values could cause overflow, this is relative between to the
         // update and clients process connections timeout.
         while (cli_count + 50 >= V16X_MAX_CLIENTS) {
-            if (_has_client_same_ip(clientaddr)) {
+            if (_has_client_same_ip(clientaddrin)) {
                 close(connfd);
                 return;
             }
@@ -243,7 +273,7 @@ void UR_V16X_Posix::update(void)
         netsocket_inf_t *netsocket_info = (netsocket_inf_t *)malloc(sizeof(netsocket_inf_t));
         memset(netsocket_info, 0, sizeof(netsocket_inf_t));
 
-        netsocket_info->clientaddr = clientaddr;
+        netsocket_info->clientaddr = clientaddrin;
         netsocket_info->connfd = connfd;
         netsocket_info->clid = clid++;
         netsocket_info->is_attached = false;
@@ -251,7 +281,9 @@ void UR_V16X_Posix::update(void)
         netsocket_info->event_stream = false;
         netsocket_info->evtstr_ping = false;
         netsocket_info->event_websocket = false;
+#if (CRYPTON_TYPE == CRYPTON_OPENSSL)
         netsocket_info->ssl = sslmain;
+#endif
 
         client_slot_add(netsocket_info);
 
@@ -280,6 +312,10 @@ int UR_V16X_Posix::open_listenfd(int port)
         return -1;
     }
 
+#ifndef _WIN32
+    fcntl(listenfd, F_SETFD, FD_CLOEXEC);
+#endif // _WIN32
+
 #if (CRYPTON_TYPE == CRYPTON_OPENSSL)
     SSL_library_init();
     OpenSSL_add_all_algorithms();
@@ -298,7 +334,7 @@ int UR_V16X_Posix::open_listenfd(int port)
 #endif
 
     /* Reuse port address */
-    if (setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, (const char *)&optval , sizeof(int)) < 0) {
+    if (setsockopt(listenfd, SOL_SOCKET, SO_REUSEADDR, (const void *)&optval , sizeof(int)) < 0) {
         return -1;
     }
 /*
@@ -306,14 +342,14 @@ int UR_V16X_Posix::open_listenfd(int port)
         return -1;
     }
 */
-    if (setsockopt(listenfd, IPPROTO_TCP, TCP_NODELAY, (const char *)&optval , sizeof(int)) < 0) {
+    if (setsockopt(listenfd, IPPROTO_TCP, TCP_NODELAY, (const void *)&optval , sizeof(int)) < 0) {
         //return -1;
     }
 
     memset(&serveraddr, 0, sizeof(serveraddr));
     serveraddr.sin_family = AF_INET;
 #ifdef __MINGW32__
-    serveraddr.sin_addr.s_addr = inet_addr((const char*)default_addr);
+    serveraddr.sin_addr.s_addr = inet_addr((const void*)default_addr);
 #else
     inet_aton((const char*)default_addr, &serveraddr.sin_addr);
 #endif
@@ -334,8 +370,7 @@ int UR_V16X_Posix::open_listenfd(int port)
 /* Add client to slot */
 void UR_V16X_Posix::client_slot_add(netsocket_inf_t *cl)
 {
-    while (pthread_mutex_trylock(&clients_mutex) == 0) {
-    }
+    THREAD_TRY_LOCK_BLOCK(clients_mutex);
 
     for (uint16_t i = 0; i < V16X_MAX_CLIENTS; ++i) {
         if (clients[i] == NULL) {
@@ -352,54 +387,51 @@ void UR_V16X_Posix::client_slot_add(netsocket_inf_t *cl)
             break;
         }
     }
-    pthread_mutex_unlock(&clients_mutex);
+    THREAD_UNLOCK(clients_mutex);
 }
 
 /* Delete client from slot */
 void UR_V16X_Posix::client_slot_delete(uint32_t clid_slot)
 {
-    while (pthread_mutex_trylock(&clients_mutex) == 0) {
-    }
+    THREAD_TRY_LOCK_BLOCK(clients_mutex);
 
     for (uint16_t i = 0; i < V16X_MAX_CLIENTS; ++i) {
         if (clients[i] != NULL) {
             if (clients[i]->clid == clid_slot) {
-                clients[i] = NULL;
                 free(clients[i]);
+                clients[i] = NULL;
                 break;
             }
         }
     }
-    pthread_mutex_unlock(&clients_mutex);
+    THREAD_UNLOCK(clients_mutex);
 }
 
 UR_V16X_Posix::netsocket_inf_t *UR_V16X_Posix::_get_next_unattached_client()
 {
-    while (pthread_mutex_trylock(&clients_mutex) == 0) {
-     }
+    THREAD_TRY_LOCK_BLOCK(clients_mutex);
 
-    netsocket_inf_t *client = NULL;
+    uint16_t clientpos = (uint16_t)-1;
 
     for (uint16_t i = 0; i < V16X_MAX_CLIENTS; ++i) {
         if (clients[i] != NULL) {
             if (!clients[i]->is_attached) {
                 clients[i]->is_attached = true;
-                client = clients[i];
+                clientpos = i;
                 break;
             }
         }
     }
-    pthread_mutex_unlock(&clients_mutex);
+    THREAD_UNLOCK(clients_mutex);
 
-    return client;
+    return (clientpos != (uint16_t)-1) ? clients[clientpos] : NULL;
 }
 
 void UR_V16X_Posix::shuttdown()
 {
     SHAL_SYSTEM::printf("Shutting down V16X posix endpoint: %d\n", _endpoint);
     fflush(stdout);
-    while (pthread_mutex_trylock(&clients_mutex) == 0) {
-    }
+    THREAD_TRY_LOCK_BLOCK(clients_mutex);
 
     for (uint16_t i = 0; i < V16X_MAX_CLIENTS; ++i) {
         if (clients[i] != NULL) {
@@ -410,7 +442,7 @@ void UR_V16X_Posix::shuttdown()
         }
     }
     close(listenfd);
-    pthread_mutex_unlock(&clients_mutex);
+    THREAD_UNLOCK(clients_mutex);
     //sig_evt = 1;
     SHAL_SYSTEM::printf("Shutdown OK V16X posix endpoint: %d\n", _endpoint);
     fflush(stdout);
@@ -419,30 +451,33 @@ void UR_V16X_Posix::shuttdown()
 
 void UR_V16X_Posix::fire_process()
 {
-    if (pthread_mutex_trylock(&process_mutex) == 0) {
-        return;
+
+    int mtx = 0;
+
+    while ((mtx = pthread_mutex_trylock(&process_mutex)) != 0) {
+#if V16X_DEBUG >= 2
+        SHAL_SYSTEM::printf("%s - %s Mutex locked mtx: %d\n", SHAL_SYSTEM::get_date(), __func__, mtx);
+#endif // V16X_DEBUG
+        //return;
     }
 
     netsocket_inf_t *netsocket_info = _get_next_unattached_client();
     if (netsocket_info == NULL) {
-        pthread_mutex_unlock(&process_mutex);
+        THREAD_UNLOCK(process_mutex);
         return;
     }
 
     int rlen = 0;
-    while (pthread_mutex_trylock(&clients_mutex) == 0) {
-    }
 
     netsocket_info->sending = 0;
-    pthread_mutex_unlock(&clients_mutex);
-
     cli_count++;
+
     _copy_client_to_frontend(_endpoint, netsocket_info->clid, netsocket_info->is_attached, (unsigned int)cli_count, inet_ntoa(netsocket_info->clientaddr.sin_addr), ntohs(netsocket_info->clientaddr.sin_port));
 
-    SHAL_SYSTEM::printf("FIRE_ISR: Start process ( CLID: %d )\n", netsocket_info->clid);
+    SHAL_SYSTEM::printf("%s - FIRE_ISR: Start process ( CLID: %d ) mtx: %d\n", SHAL_SYSTEM::get_date(), netsocket_info->clid, mtx);
     fflush(stdout);
 
-    pthread_mutex_unlock(&process_mutex);
+    THREAD_UNLOCK(process_mutex);
 
     uint16_t pollcnt = 0;
     while(rlen == 0 && netsocket_info->is_attached && pollcnt < TIMEOUT_FIREPROC) {
@@ -474,8 +509,7 @@ void UR_V16X_Posix::fire_process()
         SHAL_SYSTEM::printf("CLOSE FORCED - rlen:%d ( CLID: %d ) fd: %d Address: %s:%d\n\n", rlen, netsocket_info->clid, netsocket_info->connfd, inet_ntoa(netsocket_info->clientaddr.sin_addr), ntohs(netsocket_info->clientaddr.sin_port));
     }
 
-    while (pthread_mutex_trylock(&process_mutex) == 0) {
-    }
+    THREAD_TRY_LOCK_BLOCK(process_mutex);
 
     SHAL_SYSTEM::printf("Closed connection ( CLID: %d ) fd: %d Address: %s:%d\n\n", netsocket_info->clid, netsocket_info->connfd, inet_ntoa(netsocket_info->clientaddr.sin_addr), ntohs(netsocket_info->clientaddr.sin_port));
 
@@ -486,7 +520,7 @@ void UR_V16X_Posix::fire_process()
     _delete_client_from_frontend(_endpoint, netsocket_info->clid, (unsigned int)cli_count);
     client_slot_delete(netsocket_info->clid);
 
-    pthread_mutex_unlock(&process_mutex);
+    THREAD_UNLOCK(process_mutex);
 }
 
 bool UR_V16X_Posix::poll_in(int fd, uint32_t timeout_ms)
@@ -507,7 +541,7 @@ bool UR_V16X_Posix::poll_in(int fd, uint32_t timeout_ms)
     return true;
 }
 
-int UR_V16X_Posix::process(int fd, struct sockaddr_in *clientaddr)
+int UR_V16X_Posix::process(int fd, struct sockaddr_in *_clientaddr)
 {
     http_request_t req;
     char filenametmp[MAX_BUFF] = {0};
@@ -524,7 +558,7 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *clientaddr)
 
     int ret = parse_request(fd, &req);
 #if V16X_DEBUG >= 1
-    SHAL_SYSTEM::printf("\treq.filename: %s REQ CGI: %s queryP: NONE Addr:%s:%d\n", req.filename, filenametmp, inet_ntoa(clientaddr->sin_addr), ntohs(clientaddr->sin_port));
+    SHAL_SYSTEM::printf("\treq.filename: %s REQ CGI: %s queryP: NONE Addr:%s:%d\n", req.filename, filenametmp, inet_ntoa(_clientaddr->sin_addr), ntohs(_clientaddr->sin_port));
 #endif // V16X_DEBUG
 
     if (ret || (strlen(req.filename) <= 0)) {
@@ -558,18 +592,18 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *clientaddr)
     memcpy(querytmp, query_string, strlen(query_string));
     if (!cgi_query) {
 #if V16X_DEBUG >= 2
-        SHAL_SYSTEM::printf("\treq.filename: %s REQ CGI: %s queryP: NONE Addr:%s:%d\n", req.filename, filenametmp, inet_ntoa(clientaddr->sin_addr), ntohs(clientaddr->sin_port));
+        SHAL_SYSTEM::printf("\treq.filename: %s REQ CGI: %s queryP: NONE Addr:%s:%d\n", req.filename, filenametmp, inet_ntoa(_clientaddr->sin_addr), ntohs(_clientaddr->sin_port));
 #endif // V16X_DEBUG
     } else {
 #if V16X_DEBUG >= 2
-        SHAL_SYSTEM::printf("\treq.filename: %s req PARAM FILENAME: %s [queryP]: %s Addr:%s:%d\n", req.filename, filenametmp, querytmp, inet_ntoa(clientaddr->sin_addr), ntohs(clientaddr->sin_port));
+        SHAL_SYSTEM::printf("\treq.filename: %s req PARAM FILENAME: %s [queryP]: %s Addr:%s:%d\n", req.filename, filenametmp, querytmp, inet_ntoa(_clientaddr->sin_addr), ntohs(_clientaddr->sin_port));
         //SHAL_SYSTEM::printf("\toffset: %d \n", (int)req.offset);
 #endif // V16X_DEBUG
 
         char msg[MAX_BUFF + 50] = {0};
         if (strcmp(req.filename, "data") == 0) {
             status = 200;
-            query_param_t params1[10] = {0};
+            query_param_t params1[10] = {NULL};
             uint32_t ret1 = 0;
             int lenquery1 = strlen(query_string);
             char query_temp1[lenquery1 + 1] = {0};
@@ -596,7 +630,7 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *clientaddr)
             SHAL_SYSTEM::printf("\tDATA PARSING STORED ////////  %s\n", data_parsed.data);
 #endif // V16X_DEBUG
 
-            query_param_t params2[10] = {0};
+            query_param_t params2[10] = {NULL};
             uint32_t ret2 = 0;
             int lenquery2 = strlen(data_parsed.data);
             char query_temp2[lenquery2 + 1] = {0};
@@ -620,21 +654,21 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *clientaddr)
                 }
             }
 #if V16X_DEBUG >= 3
-            SHAL_SYSTEM::printf("length DATA: val1: %lu - val2: %lu\n", strlen(val1), strlen(val2));
+            SHAL_SYSTEM::printf("length DATA: val1: %lu - val2: %lu\n", (long unsigned int)strlen(val1), (long unsigned int)strlen(val2));
 #endif // V16X_DEBUG
             int32_t lenval = strlen(val1) + strlen(val2);
             if (strcmp(val1, val2) == 0 && lenval > 0) {
-                sprintf(msg, "DATA_URL=%u&%s&%s", req.allsize + strlen(msg), "OK=1", data_parsed.data);
+                sprintf(msg, "DATA_URL=%lu&%s&%s", (long unsigned int)(req.allsize + strlen(msg)), "OK=1", data_parsed.data);
 #if V16X_DEBUG >= 3
-                SHAL_SYSTEM::printf("DATA_URL CMP TRUE getlen: %lu - msg: %s\n", req.end, msg);
+                SHAL_SYSTEM::printf("DATA_URL CMP TRUE getlen: %lu - msg: %s\n", (long unsigned int)req.end, msg);
 #endif // V16X_DEBUG
                 handle_message_outhttp(fd, msg);
             } else {
                 //sprintf(msg, "DATA_URL=%lu&%s", req.allsize + strlen(msg), "OK=0");
                 //sprintf(msg, "retry:200\ndata:{\"len\":%lu,\"dat\":\"%s\"}\n\n", req.allsize + strlen(msg), "OK=0");
-                sprintf(msg, "{\"len\":%u,\"dat\":\"%s\"}", req.allsize + strlen(msg), "OK");
+                sprintf(msg, "{\"len\":%lu,\"dat\":\"%s\"}", (long unsigned int)(req.allsize + strlen(msg)), "OK");
 #if V16X_DEBUG >= 3
-                SHAL_SYSTEM::printf("DATA_URL CMP FALSE getlen: %lu - msg: %s\n", req.end, msg);
+                SHAL_SYSTEM::printf("DATA_URL CMP FALSE getlen: %lu - msg: %s\n", (long unsigned int)req.end, msg);
 #endif // V16X_DEBUG
                 handle_message_outhttp(fd, msg);
             }
@@ -650,7 +684,7 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *clientaddr)
         }
 
         if (strcmp(req.filename, "sds") == 0) {
-            query_param_t split_querystr[10] = {0};
+            query_param_t split_querystr[10] = {NULL};
             char *ret_msg[1] = {0};
             char qstrtemp[strlen(query_string) + 1] = {0};
             memcpy(qstrtemp, query_string, strlen(query_string));
@@ -672,7 +706,7 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *clientaddr)
             return ret;
         }
 
-        log_access(status, clientaddr, &req);
+        log_access(status, _clientaddr, &req);
     }
 
     DIR* dir = opendir(req.filename);
@@ -687,13 +721,15 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *clientaddr)
 #if V16X_DEBUG >= 1
         SHAL_SYSTEM::printf("Directory NO exist: %s\n", req.filename);
 #endif // V16X_DEBUG
-        ffd = open(req.filename, O_FLAG_RBINARY, 0);
+        closedir(dir);
+        ffd = open(req.filename, O_FLAG_RBINARY | O_CLOEXEC, 0);
     } else {
         // opendir() failed for some other reason.
 #if V16X_DEBUG >= 1
         SHAL_SYSTEM::printf("Directory FAILED: %s\n", req.filename);
 #endif // V16X_DEBUG
-        ffd = open(req.filename, O_FLAG_RBINARY, 0);
+        closedir(dir);
+        ffd = open(req.filename, O_FLAG_RBINARY | O_CLOEXEC, 0);
     }
 
     struct stat sbuf;
@@ -721,10 +757,10 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *clientaddr)
                 status = 206;
             }
 
-            serve_static(fd, ffd, clientaddr, &req, sbuf.st_size);
+            serve_static(fd, ffd, _clientaddr, &req, sbuf.st_size);
 
             if (cgi_query) {
-                query_param_t params3[10] = {0};
+                query_param_t params3[10] = {NULL};
                 uint32_t ret3 = 0;
                 int lenquery3 = strlen(query_string);
                 char query_temp3[lenquery3 + 1] = {0};
@@ -754,16 +790,18 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *clientaddr)
         } else if(dir) {
             status = 200;
 
+/*
             char dirtmp[256] = {0};
             memcpy(dirtmp, req.filename, strlen(req.filename));
 
             if (dirtmp[strlen(dirtmp) - 1] != '/') {
                 dirtmp[strlen(dirtmp)] = '/';
             } else {
-                memset(dirtmp, 0, sizeof(dirtmp));
+                //memset(dirtmp, 0, sizeof(dirtmp));
             }
+*/
 
-            handle_directory_request(fd, ffd, dirtmp);
+            handle_directory_request(fd, ffd, req.filename);
             char msgtmp[MAX_BUFF + 50] = {0};
             sprintf(msgtmp, "&STD_URL=0&%s", data_parsed.data);
 #if V16X_DEBUG >= 3
@@ -781,15 +819,13 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *clientaddr)
         }
     }
 
-    if (ffd > 0) {
+    if (dir) {
+        closedir(dir);
+    } else if (ffd > 0) {
         close(ffd);
     }
 
-    if (dir) {
-        closedir(dir);
-    }
-
-    log_access(status, clientaddr, &req);
+    log_access(status, _clientaddr, &req);
     return ret;
 }
 
@@ -854,6 +890,10 @@ int UR_V16X_Posix::_decode_hybi(char *src, size_t srclength, char *target, int t
     int target_offset = 0;
     int hdr_length = 0;
     int payload_length = 0;
+
+    if (srclength < 5) {
+        return -1;
+    }
 
     *left = srclength;
     frame = src;
@@ -974,7 +1014,7 @@ uint8_t UR_V16X_Posix::parse_request(int fd, http_request_t *req)
         return closed;
     }
 
-    query_param_t split_params[20] = {0};
+    query_param_t split_params[20] = {NULL};
     uint32_t ret_params = deepsrv.parse_query(buf, '\n', 0, split_params, 20);
 #if V16X_DEBUG >= 99
     SHAL_SYSTEM::printf("%sEvents prints%s\n", COLOR_PRINTF_WHITE(0), COLOR_PRINTF_RESET);
@@ -992,9 +1032,9 @@ uint8_t UR_V16X_Posix::parse_request(int fd, http_request_t *req)
         sprintf(bufevt + strlen(bufevt), "%s", "Content-Type:text/event-stream\r\n");
         sprintf(bufevt + strlen(bufevt), "Date:%s\r\n\r\n", SHAL_SYSTEM::get_date());
         writen(fd, bufevt, strlen(bufevt));
-#if V16X_DEBUG >= 2
+
         SHAL_SYSTEM::printf("\n++++++++Event stream parsed!++++++++\n\n");
-#endif // V16X_DEBUG
+
         req->filename[0] = '\0';
         return closed;
     }
@@ -1018,7 +1058,7 @@ uint8_t UR_V16X_Posix::parse_request(int fd, http_request_t *req)
         SHAL_SYSTEM::printf("\n++++++++Web Socket parsed!++++++++\n");
 #if V16X_DEBUG >= 2
         SHAL_SYSTEM::printf("\nfldval: %s++++++++\n", fldval);
-        SHAL_SYSTEM::printf("b64: %s b64enc_len: %lu digest_len: %lu\n", b64enc, strlen(b64enc), strlen(digest));
+        SHAL_SYSTEM::printf("b64: %s b64enc_len: %lu digest_len: %lu\n", b64enc, (long unsigned int)strlen(b64enc), (long unsigned int)strlen(digest));
 #endif // V16X_DEBUG
         sprintf(bufevt, "HTTP/1.1 %d Switching Protocols\r\n", 101);
         sprintf(bufevt + strlen(bufevt), "Server:%s\r\n", SERVER_VERSION);
@@ -1041,14 +1081,11 @@ uint8_t UR_V16X_Posix::parse_request(int fd, http_request_t *req)
     }
 
     if (deepsrv.has_key(split_params, 1, ret_params, "Range", idx_param)) {
-        int64_t offset;
+        long long int offset;
         char field[MAX_BUFF] = {0};
         sscanf(split_params[idx_param].key,"%s bytes=%lld-", field, &offset);
         req->offset = (off_t)offset;
     }
-
-    deepsrv.destroy_qparams(split_params, ret_params);
-    ret_params = deepsrv.parse_query(buf, '\n', 0, split_params, 20);
 
     if (deepsrv.has_key(split_params, 1, ret_params, "Connection", idx_param)) {
         char field[MAX_BUFF] = {0};
@@ -1056,13 +1093,12 @@ uint8_t UR_V16X_Posix::parse_request(int fd, http_request_t *req)
         if (strstr(field, "Keep-Alive")) {
             netsocket_inf_t *client = _get_client(fd);
             if (client != NULL) {
-                while (pthread_mutex_trylock(&clients_mutex) == 0) {
-                }
                 client->keep_alive = true;
-                pthread_mutex_unlock(&clients_mutex);
             }
         }
     }
+
+    deepsrv.destroy_qparams(split_params, ret_params);
 
     sscanf(buf, "%s %s", method, uri);
 
@@ -1080,14 +1116,11 @@ uint8_t UR_V16X_Posix::parse_request(int fd, http_request_t *req)
     len = _decode_hybi(buftmp, dat_io.io_cnt, wsdec, MAX_BUFF, &opcode, &left);
     (void)len;
 
-#if V16X_DEBUG >= 2
-    netsocket_inf_t *client = _get_client(fd);
-#endif // V16X_DEBUG
     if (strstr(wsdec, "V16X")) {
         _set_client_event_websocket(fd, true);
         char header[10] = {0};
         char query_str[MAX_BUFF] = {0};
-        query_param_t split_querystr[10] = {0};
+        query_param_t split_querystr[10] = {NULL};
 
         sscanf(wsdec, "%s %s", header, query_str);
         ret_params = deepsrv.parse_query(query_str, '&', '=', split_querystr, 10);
@@ -1097,6 +1130,7 @@ uint8_t UR_V16X_Posix::parse_request(int fd, http_request_t *req)
         deepsrv.destroy_qparams(split_querystr, ret_params);
 
 #if V16X_DEBUG >= 2
+        netsocket_inf_t *client = _get_client(fd);
         if (client != NULL) {
             SHAL_SYSTEM::printf("V16X METHOD msg: %s len: %d ( CLID: %d ) fd: %d Address:  %s:%d closed: %d\n\n", wsdec, len, client->clid, client->connfd, inet_ntoa(client->clientaddr.sin_addr), ntohs(client->clientaddr.sin_port), closed);
         }
@@ -1105,12 +1139,12 @@ uint8_t UR_V16X_Posix::parse_request(int fd, http_request_t *req)
     }  else if (strstr(method, "HEAD")) {
         netsocket_inf_t *client = _get_client(fd);
         if (client != NULL) {
-            while (pthread_mutex_trylock(&clients_mutex) == 0) {
-            }
             client->method_head = true;
-            pthread_mutex_unlock(&clients_mutex);
         }
     } else if (!strstr(method, "GET")) {
+#if V16X_DEBUG >= 2
+        netsocket_inf_t *client = _get_client(fd);
+#endif // V16X_DEBUG
         if (strlen(method) > 0) {
 #if V16X_DEBUG >= 2
             if (client != NULL) {
@@ -1127,7 +1161,7 @@ uint8_t UR_V16X_Posix::parse_request(int fd, http_request_t *req)
         return closed;
     }
 
-    req->allsize = dat_io.io_cnt;
+    req->allsize = (size_t)dat_io.io_cnt;
     char* filename = uri;
     while (*filename == '/') {
         filename++;
@@ -1155,7 +1189,8 @@ uint8_t UR_V16X_Posix::parse_request(int fd, http_request_t *req)
 
 void UR_V16X_Posix::handle_message_outhttp(int fd, const char *longmsg)
 {
-    char *buf = new char[1024];
+    char buf[1024];
+    memset(buf, 0, 1024);
 
     if (!_has_client_events(fd)) {
         sprintf(buf, "HTTP/1.1 %d %s\r\n", 200, "OK");
@@ -1167,7 +1202,7 @@ void UR_V16X_Posix::handle_message_outhttp(int fd, const char *longmsg)
         //sprintf(buf + strlen(buf), "Clear-Site-Data: \"cache\"\r\n");
         sprintf(buf + strlen(buf), "%s", "Content-Type:text/plain;charset=UTF-8\r\n");
         sprintf(buf + strlen(buf), "Date:%s\r\n", SHAL_SYSTEM::get_date());
-        sprintf(buf + strlen(buf), "Content-length:%u\r\n\r\n", strlen(longmsg));
+        sprintf(buf + strlen(buf), "Content-length:%lu\r\n\r\n", (long unsigned int)strlen(longmsg));
         writen(fd, buf, strlen(buf));
         //sprintf(buf + strlen(buf), "%s", longmsg);
         uint64_t lenlng = strlen(longmsg);
@@ -1203,17 +1238,20 @@ void UR_V16X_Posix::client_error(int fd, int status, const char *msg, const char
     //sprintf(buf + strlen(buf), "Clear-Site-Data: \"cache\"\r\n");
     sprintf(buf + strlen(buf), "Connection:%s\r\n", "close");
     sprintf(buf + strlen(buf), "Date:%s\r\n", SHAL_SYSTEM::get_date());
-    sprintf(buf + strlen(buf), "Content-length:%u\r\n\r\n", strlen(longmsgtmp));
+    sprintf(buf + strlen(buf), "Content-length:%lu\r\n\r\n", (long unsigned int)strlen(longmsgtmp));
     writen(fd, buf, strlen(buf));
     sprintf(buf, "%s", longmsgtmp);
     writen(fd, buf, strlen(buf));
+
+    close(fd);
+/*
     netsocket_inf_t *client = _get_client(fd);
     if (client != NULL) {
-        while (pthread_mutex_trylock(&clients_mutex)) {
-        }
+        THREAD_TRY_LOCK_BLOCK(clients_mutex);
         client->is_attached = false;
-        pthread_mutex_unlock(&clients_mutex);
+        THREAD_UNLOCK(clients_mutex);
     }
+*/
 }
 
 void UR_V16X_Posix::serve_static(int out_fd, int in_fd, struct sockaddr_in *c_addr, http_request_t *req, size_t total_size)
@@ -1233,8 +1271,7 @@ void UR_V16X_Posix::serve_static(int out_fd, int in_fd, struct sockaddr_in *c_ad
 
     netsocket_inf_t *client = _get_client(out_fd);
     if (client == NULL) {
-        client = new netsocket_inf_t;
-        client->clid = -1;
+        return;
     }
 
     if ((size_t)req->offset > req->end) {
@@ -1242,7 +1279,7 @@ void UR_V16X_Posix::serve_static(int out_fd, int in_fd, struct sockaddr_in *c_ad
         const char *msg = "Offset file error";
         client_error(out_fd, status, "Error", msg);
 #if V16X_DEBUG >= 1
-        SHAL_SYSTEM::printf("\t[ Offset > end ] #1 fd:%d offset: %lld end: %u diff: %lld - %s Addr:%s:%d clid:%d\n", in_fd, req->offset, req->end, (req->end - req->offset), filetmp, inet_ntoa(c_addr->sin_addr), ntohs(c_addr->sin_port), (int)client->clid);
+        SHAL_SYSTEM::printf("\t[ Offset > end ] #1 fd:%d offset: %ld end: %lu diff: %ld - %s Addr:%s:%d clid:%d\n", in_fd, (long int)req->offset, (long unsigned int)req->end, (long int)req->end - (long int)req->offset, filetmp, inet_ntoa(c_addr->sin_addr), ntohs(c_addr->sin_port), (int)client->clid);
 #endif
         return;
     }
@@ -1253,7 +1290,7 @@ void UR_V16X_Posix::serve_static(int out_fd, int in_fd, struct sockaddr_in *c_ad
     if (req->offset > 0) {
         sprintf(buf, "%s", "HTTP/1.1 206 Partial Content\r\n");
         sprintf(buf + strlen(buf), "Server:%s\r\n", SERVER_VERSION);
-        sprintf(buf + strlen(buf), "Content-Range:bytes %lld-%u/%u\r\n", req->offset, total_size - 1, total_size);
+        sprintf(buf + strlen(buf), "Content-Range:bytes %lu-%lu/%lu\r\n", (long unsigned int)req->offset, (long unsigned int)total_size - 1, (long unsigned int)total_size);
         sprintf(buf + strlen(buf), "Access-Control-Allow-Origin:%s\r\n", "*");
         //sprintf(buf + strlen(buf), "Connection:%s\r\n", "close");
         sprintf(buf + strlen(buf), "Connection:%s\r\n", "Keep-Alive");
@@ -1266,7 +1303,7 @@ void UR_V16X_Posix::serve_static(int out_fd, int in_fd, struct sockaddr_in *c_ad
         //sprintf(buf + strlen(buf), "Cache-Control:public,max-age=315360000\r\nExpires:Thu,31 Dec 2037 23:55:55 GMT\r\n");
         sprintf(buf + strlen(buf), "Content-type:%s\r\n", get_mime_type(filetmp));
         sprintf(buf + strlen(buf), "Date:%s\r\n", SHAL_SYSTEM::get_date());
-        sprintf(buf + strlen(buf), "Content-length:%u\r\n\r\n", total_size - (uint32_t)req->offset);
+        sprintf(buf + strlen(buf), "Content-length:%lu\r\n\r\n", (long unsigned int)total_size - (long unsigned int)req->offset);
 
     } else {
         sprintf(buf, "%s", "HTTP/1.1 200 OK\r\nAccept-Ranges:bytes\r\n");
@@ -1284,7 +1321,7 @@ void UR_V16X_Posix::serve_static(int out_fd, int in_fd, struct sockaddr_in *c_ad
         //sprintf(buf + strlen(buf), "Cache-Control:public,max-age=315360000\r\nExpires:Thu,31 Dec 2037 23:55:55 GMT\r\n");
         sprintf(buf + strlen(buf), "Content-type:%s\r\n", get_mime_type(filetmp));
         sprintf(buf + strlen(buf), "Date:%s\r\n", SHAL_SYSTEM::get_date());
-        sprintf(buf + strlen(buf), "Content-length:%u\r\n\r\n", total_size);
+        sprintf(buf + strlen(buf), "Content-length:%lu\r\n\r\n", (long unsigned int)total_size);
     }
 
     writen(out_fd, buf, strlen(buf));
@@ -1298,14 +1335,14 @@ void UR_V16X_Posix::serve_static(int out_fd, int in_fd, struct sockaddr_in *c_ad
 
     if (client->method_head) {
 #if V16X_DEBUG >= 1
-        SHAL_SYSTEM::printf("Head received! fd:%d offset: %lld offsettmp: %lld end: %lld diff: %lld - %s Addr:%s:%d clid:%d\n", in_fd, (int64_t)offset, (int64_t)offsettmp, (int64_t)end, (int64_t)(end - offset), filetmp, inet_ntoa(c_addr->sin_addr), ntohs(c_addr->sin_port), (int)client->clid);
+        SHAL_SYSTEM::printf("Head received! fd:%d offset: %ld offsettmp: %ld end: %ld diff: %ld - %s Addr:%s:%d clid:%d\n", in_fd, (long int)offset, (long int)offsettmp, (long int)end, (long int)(end - offset), filetmp, inet_ntoa(c_addr->sin_addr), ntohs(c_addr->sin_port), (int)client->clid);
         fflush(stdout);
 #endif // V16X_DEBUG
         client->is_attached = false;
         return;
     }
 #if V16X_DEBUG >= 1
-    SHAL_SYSTEM::printf("\t[ SERVING STATIC INIT ] #1 fd:%d offset: %lld end: %u diff: %lld - %s Addr:%s:%d clid:%d\n", in_fd, req->offset, req->end, (req->end - req->offset), filetmp, inet_ntoa(c_addr->sin_addr), ntohs(c_addr->sin_port), (int)client->clid);
+    SHAL_SYSTEM::printf("\t[ SERVING STATIC INIT ] #1 fd:%d offset: %ld end: %lu diff: %ld - %s Addr:%s:%d clid:%d\n", in_fd, (long int)req->offset, (long unsigned int)req->end, (long int)(req->end - req->offset), filetmp, inet_ntoa(c_addr->sin_addr), ntohs(c_addr->sin_port), (int)client->clid);
     fflush(stdout);
 #endif // V16X_DEBUG
 
@@ -1337,10 +1374,13 @@ void UR_V16X_Posix::serve_static(int out_fd, int in_fd, struct sockaddr_in *c_ad
 */
 
 #if V16X_DEBUG >= 1
-    SHAL_SYSTEM::printf("\tServing static #1 fd:%d offset: %lld offsettmp: %lld end: %lld diff: %lld - %s Addr:%s:%d clid:%d\n", in_fd, (int64_t)offset, (int64_t)offsettmp, (int64_t)end, (int64_t)(end - offset), filetmp, inet_ntoa(c_addr->sin_addr), ntohs(c_addr->sin_port), (int)client->clid);
+    SHAL_SYSTEM::printf("\tServing static #1 fd:%d offset: %ld offsettmp: %ld end: %ld diff: %ld - %s Addr:%s:%d clid:%d\n", in_fd, (long int)offset, (long int)offsettmp, (long int)end, (long int)(end - offset), filetmp, inet_ntoa(c_addr->sin_addr), ntohs(c_addr->sin_port), (int)client->clid);
 #endif // V16X_DEBUG
 
-    while(offsettmp < total_size) {
+#ifdef __unix__
+    off_t offtmp = (off_t)offsettmp;
+#endif // __unix__
+    while(offsettmp < (int64_t)total_size) {
 #if defined(__MSYS__) || defined(__MINGW32__) || (CRYPTON_TYPE == CRYPTON_OPENSSL)
         //if (poll_in(out_fd, UPDATE_POLLIN_INTERVAL)) {
         lseek(in_fd, offsettmp, SEEK_SET);
@@ -1352,7 +1392,7 @@ void UR_V16X_Posix::serve_static(int out_fd, int in_fd, struct sockaddr_in *c_ad
 
         if (readsize < 0) {
 #if V16X_DEBUG >= 1
-            SHAL_SYSTEM::printf("\tServing static BREAK OFFSET #2 fd:%d offsettmp: %d offset: %d end: %d diff: %d readsize: %lld - %s Addr:%s:%d clid: %d\n", in_fd, (int)offsettmp, (int)offset, (int)end, (int)(end - offsettmp), readsize, filetmp, inet_ntoa(c_addr->sin_addr), ntohs(c_addr->sin_port), (int)client->clid);
+            SHAL_SYSTEM::printf("\tServing static BREAK OFFSET #2 fd:%d offsettmp: %d offset: %d end: %d diff: %d readsize: %ld - %s Addr:%s:%d clid: %d\n", in_fd, (int)offsettmp, (int)offset, (int)end, (int)(end - offsettmp), (long int)readsize, filetmp, inet_ntoa(c_addr->sin_addr), ntohs(c_addr->sin_port), (int)client->clid);
 #endif // V16X_DEBUG
             break;
         }
@@ -1360,7 +1400,7 @@ void UR_V16X_Posix::serve_static(int out_fd, int in_fd, struct sockaddr_in *c_ad
         offset = (int64_t)writen(out_fd, buftmp, readsize);
         if (offset <= 0) {
 #if V16X_DEBUG >= 1
-            SHAL_SYSTEM::printf("\tServing static BREAK WRITEN #3 fd:%d offsettmp: %d sentdat: %d end: %d diff: %d readsize: %lld - %s Addr:%s:%d clid: %d\n", in_fd, (int)offsettmp, (int)offset, (int)end, (int)(end - offsettmp), readsize, filetmp, inet_ntoa(c_addr->sin_addr), ntohs(c_addr->sin_port), (int)client->clid);
+            SHAL_SYSTEM::printf("\tServing static BREAK WRITEN #3 fd:%d offsettmp: %d sentdat: %d end: %d diff: %d readsize: %ld - %s Addr:%s:%d clid: %d\n", in_fd, (int)offsettmp, (int)offset, (int)end, (int)(end - offsettmp), (long int)readsize, filetmp, inet_ntoa(c_addr->sin_addr), ntohs(c_addr->sin_port), (int)client->clid);
 #endif // V16X_DEBUG
             break;
         }
@@ -1368,23 +1408,25 @@ void UR_V16X_Posix::serve_static(int out_fd, int in_fd, struct sockaddr_in *c_ad
         offsettmp += offset;
 #if V16X_DEBUG >= 1
         if ((end - offsettmp) == 0) {
-            SHAL_SYSTEM::printf("\tServing static END #4 fd:%d offsettmp: %d sentdat: %d end: %d diff: %d readsize: %lld - %s Addr:%s:%d clid: %d\n", in_fd, (int)offsettmp, (int)offset, (int)end, (int)(end - offsettmp), readsize, filetmp, inet_ntoa(c_addr->sin_addr), ntohs(c_addr->sin_port), (int)client->clid);
+            SHAL_SYSTEM::printf("\tServing static END #4 fd:%d offsettmp: %d sentdat: %d end: %d diff: %d readsize: %ld - %s Addr:%s:%d clid: %d\n", in_fd, (int)offsettmp, (int)offset, (int)end, (int)(end - offsettmp), (long int)readsize, filetmp, inet_ntoa(c_addr->sin_addr), ntohs(c_addr->sin_port), (int)client->clid);
         }
 #endif // V16X_DEBUG
 
         //}
 #else
-        if(sendfile(out_fd, in_fd, &offsettmp, total_size) < 0) {
+        if(sendfile(out_fd, in_fd, &offtmp, (size_t)total_size) < 0) {
+            offsettmp = offtmp;
 #if V16X_DEBUG >= 1
-            SHAL_SYSTEM::printf("\tServing static SENDIFLE #2 fd:%d offsettmp: %ld offset: %ld end: %ld diff: %ld - %s Addr:%s:%d clid: %d\n", in_fd, (int64_t)offsettmp, (int64_t)offset, (int64_t)end, (int64_t)(end - offsettmp), filetmp, inet_ntoa(c_addr->sin_addr), ntohs(c_addr->sin_port), (int)client->clid);
+            SHAL_SYSTEM::printf("\tServing static SENDIFLE #2 fd:%d offsettmp: %lld offset: %lld end: %lld diff: %lld - %s Addr:%s:%d clid: %d\n", in_fd, (long long int)offsettmp, (long long int)offset, (long long int)end, (long long int)(end - offsettmp), filetmp, inet_ntoa(c_addr->sin_addr), ntohs(c_addr->sin_port), (int)client->clid);
             fflush(stdout);
 #endif // V16X_DEBUG
             break;
         }
-
-        offsettmp += offset;
+        offsettmp += (int64_t)offtmp;
+        //break;
 #endif // __MSYS__
     }
+
 }
 
 void UR_V16X_Posix::handle_directory_request(int out_fd, int dir_fd, char *filename)
@@ -1395,12 +1437,14 @@ void UR_V16X_Posix::handle_directory_request(int out_fd, int dir_fd, char *filen
     char size[16] = {0};
     char longmsg[max_buff] = {0};
     struct stat statbuf;
-    char *norm_filename = nullptr;
+    char *norm_filename = NULL;
+    char *norm_filenameptr = NULL;
 
     sprintf(bufdir, "HTTP/1.1 %d %s\r\n", 200, "OK");
     sprintf(bufdir + strlen(bufdir), "Server:%s\r\n", SERVER_VERSION);
     sprintf(bufdir + strlen(bufdir), "%s", "Content-Type:text/html;charset=UTF-8\r\n");
     sprintf(bufdir + strlen(bufdir), "Cache-Control:no-cache\r\n");
+    sprintf(bufdir + strlen(bufdir), "Access-Control-Allow-Origin:%s\r\n", "*");
     //sprintf(bufdir + strlen(bufdir), "Cache-Control: no-store\r\n");
     //sprintf(bufdir + strlen(bufdir), "Cache-Control: max-age=0, must-revalidate\r\n");
     //sprintf(bufdir + strlen(bufdir), "Clear-Site-Data: \"cache\"\r\n");
@@ -1417,30 +1461,59 @@ void UR_V16X_Posix::handle_directory_request(int out_fd, int dir_fd, char *filen
     sprintf(longmsg + strlen(longmsg), "%s", "</style></head><body><table>");
     writen(out_fd, longmsg, strlen(longmsg));
     memset(&longmsg[0], 0, max_buff);
-#ifdef __MINGW32__
-    DIR *dir = opendir(filename);
+
+    bool has_slashdirtail = true;
+    char dirtmp[256] = {0};
+    memcpy(dirtmp, filename, strlen(filename));
+
+    if (dirtmp[strlen(dirtmp) - 1] != '/') {
+        dirtmp[strlen(dirtmp)] = '/';
+        has_slashdirtail = false;
+    }
+
+    norm_filenameptr = new char[strlen(filename) + 1];
+    norm_filename = norm_filenameptr;
+    memset(norm_filename, 0, strlen(filename) + 1);
+    memcpy(norm_filename, filename, strlen(filename));
+#if V16X_DEBUG >= 3
+    SHAL_SYSTEM::printf("handling dir before: norm: %s [len: %d] - dir: %s - dirtmp: %s\n", norm_filename, (int)strlen(norm_filename), filename, dirtmp);
+#endif // V16X_DEBUG
+
+    norm_filename = norm_filename + strlen(norm_filename);
+    norm_filename--;
+    while((*norm_filename != '/') && (*norm_filename != '\0')) {
+        norm_filename--;
+    }
+
+    if ((*norm_filename == '/') && (!has_slashdirtail)) {
+        *norm_filename = '\0';
+        norm_filename++;
+    }
+
+#if defined(__MINGW32__ ) || defined(__ANDROID__)
+    DIR *dir = opendir(dirtmp);
 #else
     DIR *dir = fdopendir(dir_fd);
 #endif // __MINGW32__
 
-    struct dirent *dp;
-    int ffd;
+    if (dir == NULL) {
+        SHAL_SYSTEM::printf("handling dir ERROR open dir: %s\n", dirtmp);
+    }
+
+    struct dirent *dp = NULL;
+    int ffd = 0;
     int filecnt = 0;
     int dircnt = 0;
+#if V16X_DEBUG >= 1
+    SHAL_SYSTEM::printf("handling dir after: norm: %s [len: %d] - dir: %s - dirtmp: %s\n", norm_filename, (int)strlen(norm_filename), filename, dirtmp);
+#endif // V16X_DEBUG
 
-    SHAL_SYSTEM::printf("filename: %s\n", filename);
-    norm_filename = new char[strlen(filename) + 1];
-    memcpy(norm_filename, filename, strlen(filename));
+    while(dir != NULL) {
+        dp = readdir(dir);
+        if (dp == NULL) {
+            break;
+        }
 
-    while((*norm_filename != '/') && (*norm_filename != '\0')) {
-        norm_filename++;
-    }
-
-    if (*norm_filename == '/') {
-        *norm_filename = '\0';
-    }
-
-    while((dp = readdir(dir)) != NULL) {
         if (strlen(longmsg) >= ((max_buff) - 256)) {
             break;
         }
@@ -1449,43 +1522,50 @@ void UR_V16X_Posix::handle_directory_request(int out_fd, int dir_fd, char *filen
             continue;
         }
 
-#ifdef __MINGW32__
-        char fname[256] = {0};
-        sprintf(fname, "%s%s", filename, dp->d_name);
-        ffd = open(fname, O_FLAG_RBINARY, 0);
+#if defined(__MINGW32__ ) || defined(__ANDROID__)
+        char fdirname[256] = {0};
+        sprintf(fdirname, "%s%s", dirtmp, dp->d_name);
+#if defined(__MINGW32__ )
+        ffd = open(fdirname, O_FLAG_RBINARY, 0);
+#endif // defined
 #else
         ffd = openat(dir_fd, dp->d_name, O_FLAG_RBINARY);
 #endif // __MINGW32__
-        if (ffd == -1) {
+        if (ffd < 0) {
             perror(dp->d_name);
             continue;
         }
 
-#ifdef __MINGW32__
-        stat(fname, &statbuf);
+#if defined(__MINGW32__ ) || defined(__ANDROID__)
+        stat(fdirname, &statbuf);
 #else
         fstat(ffd, &statbuf);
 #endif // __MINGW32__
-        strftime(m_time, sizeof(m_time), "%Y-%m-%d %H:%M", localtime(&statbuf.st_mtime));
+        strftime(m_time, sizeof(m_time), "%Y-%m-%d %H:%M", localtime((const time_t*)&statbuf.st_mtime));
 
         format_size(size, &statbuf, &filecnt, &dircnt);
 
         if (S_ISREG(statbuf.st_mode) || S_ISDIR(statbuf.st_mode)) {
-            const char *d1 = S_ISDIR(statbuf.st_mode) ? "/" : "";
+            const char d1 = S_ISDIR(statbuf.st_mode) ? '/' : ' ';
             char dname[256] = {0};
             char color[20] = {0};
-            if (*d1 == '/') {
-                 sprintf(color, "%s", "color:#e50000");
+
+            memset(&dname[0], 0, sizeof(dname));
+            if (d1 == '/') {
+                 sprintf(&color[0], "%s", "color:#e50000");
             }
             if (!strstr(dp->d_name, "v16x")) {
-                if ((strlen(filename) > 0) && (strlen(norm_filename) > 0)) {
-                    sprintf(dname, "%s", norm_filename);
-                } else {
-                    sprintf(dname, "%s", filename);
+                if (!has_slashdirtail) {
+                    sprintf(dname, "%s/", norm_filename);
+                }
+
+                if (strlen(norm_filename) == 0) {
+                    sprintf(dname, "%s", dirtmp);
                 }
                 sprintf(dname + strlen(dname), "%s", dp->d_name);
                 char lngmsg[MAX_BUFF] = {0};
-                sprintf(lngmsg, "<tr><td><a style='%s' href=\"%s%s\">%s%s</a></td><td>%s</td><td>%s</td></tr>",
+                memset(lngmsg, 0, sizeof(lngmsg));
+                sprintf(lngmsg, "<tr><td><a style='%s' href=\"%s%c\">%s%c</a></td><td>%s</td><td>%s</td></tr>",
                         color, dname, d1, dp->d_name, d1, m_time, size);
                 writen(out_fd, lngmsg, strlen(lngmsg));
             } else {
@@ -1493,21 +1573,29 @@ void UR_V16X_Posix::handle_directory_request(int out_fd, int dir_fd, char *filen
             }
         }
 
-        close(ffd);
+        if (ffd > 0) {
+            close(ffd);
+        }
+    }
+
+    if (dir) {
+        closedir(dir);
     }
 
     sprintf(longmsg, "<td><br>Total items: %d Files: %d Dirs: %d</br></td></table><hr><center>%s</center></body></html>", filecnt + dircnt, filecnt, dircnt, SERVER_VERSION);
     sprintf(bufdir, "%s", longmsg);
     writen(out_fd, bufdir, strlen(bufdir));
 
+    close(out_fd);
+/*
     netsocket_inf_t *client = _get_client(out_fd);
     if (client != NULL) {
-        while (pthread_mutex_trylock(&clients_mutex) == 0) {
-        }
+        THREAD_TRY_LOCK_BLOCK(clients_mutex);
         client->is_attached = false;
-        pthread_mutex_unlock(&clients_mutex);
-
+        THREAD_UNLOCK(clients_mutex);
     }
+*/
+    delete[] norm_filenameptr;
 }
 
 ssize_t UR_V16X_Posix::io_data_read(data_io_t *data_iop, char *usrbuf, size_t maxlen, int *closed)
@@ -1516,10 +1604,9 @@ ssize_t UR_V16X_Posix::io_data_read(data_io_t *data_iop, char *usrbuf, size_t ma
     memset(usrbuf, '\0', maxlen);
     data_iop->io_cnt = 0;
 
-    netsocket_inf_t *client = _get_client(data_iop->io_fd);
-
     int fd = data_iop->io_fd;
 #if (CRYPTON_TYPE == CRYPTON_OPENSSL)
+    netsocket_inf_t *client = _get_client(data_iop->io_fd);
     if (client) {
         if (client->ssl != NULL) {
             data_iop->io_cnt = SSL_read(client->ssl, data_iop->io_buf, MAX_BUFF - 1);
@@ -1532,7 +1619,7 @@ ssize_t UR_V16X_Posix::io_data_read(data_io_t *data_iop, char *usrbuf, size_t ma
 #endif
 
     if (data_iop->io_cnt <= 0) {
-        data_iop->io_cnt = recv(fd, data_iop->io_buf, MAX_BUFF, MSG_DONTWAIT);
+        data_iop->io_cnt = recv(fd, data_iop->io_buf, MAX_BUFF - 1, MSG_DONTWAIT);
     }
 
 #if V16X_DEBUG >= 99
@@ -1612,7 +1699,7 @@ ssize_t UR_V16X_Posix::writen(int fd, const void *usrbuf, size_t n)
     struct sockaddr addr = *(struct sockaddr*)&client->clientaddr;
 
     if (client->ssl == NULL) {
-#if V16X_DEBUG >= 2
+#if V16X_DEBUG >= 2 && (CRYPTON_TYPE == CRYPTON_OPENSSL)
         SHAL_SYSTEM::printf("\n\n\tfunct %s SSL ERROR: %d on fd: %d!!!\n\n", __func__, errno, fd);
         //return -1;
 #endif // V16X_DEBUG
@@ -1684,7 +1771,7 @@ void UR_V16X_Posix::format_size(char* buf, struct stat *stat, int *filecnt, int 
         *filecnt += 1;
         off_t size = stat->st_size;
         if (size < 1024) {
-            sprintf(buf, "%llu", size);
+            sprintf(buf, "%llu", (long long unsigned)size);
         } else if (size < 1024 * 1024) {
             sprintf(buf, "%.1fK", (double)size / 1024);
         } else if (size < 1024 * 1024 * 1024) {
@@ -1697,19 +1784,26 @@ void UR_V16X_Posix::format_size(char* buf, struct stat *stat, int *filecnt, int 
 
 void UR_V16X_Posix::process_event_stream()
 {
+
+    int mtx = 0;
+    if ((mtx = pthread_mutex_trylock(&process_mutex)) != 0) {
+#if V16X_DEBUG >= 2
+        SHAL_SYSTEM::printf("%s - %s Mutex locked mtx: %d\n", SHAL_SYSTEM::get_date(), __func__, mtx);
+#endif // V16X_DEBUG
+        return;
+    }
+
     char msg[MAX_BUFF] = {0};
     static uint32_t last = SHAL_SYSTEM::millis32();
     uint32_t now = SHAL_SYSTEM::millis32();
 
     if ((now - last) < PROCESS_EVENT_INTERVAL) {
+        THREAD_UNLOCK(process_mutex);
         return;
     }
 
     last = SHAL_SYSTEM::millis32();
     netsocket_inf_t client;
-
-    while (pthread_mutex_trylock(&clients_mutex) == 0) {
-    }
 
     for (uint16_t i = 0; i < V16X_MAX_CLIENTS; ++i) {
         if (clients[i] != NULL) {
@@ -1718,10 +1812,9 @@ void UR_V16X_Posix::process_event_stream()
                 if (!client.evtstr_ping) {
                     continue;
                 }
-
                 //clients[i]->evtstr_ping = false;
                 memset(msg, '\0', MAX_BUFF);
-                sprintf(msg, "retry:1000\nid:%d\ndata:{\"len\":%u,\"clid\":\"%d\",\"fd\":%d}\n\n", client.clid, sizeof(msg), client.clid, client.connfd);
+                sprintf(msg, "retry:1000\nid:%d\ndata:{\"len\":%lu,\"clid\":\"%d\",\"fd\":%d}\n\n", client.clid, (long unsigned int)sizeof(msg), (int)client.clid, client.connfd);
                 writen(client.connfd, msg, strlen(msg));
                 //shutdown(clients[i]->connfd, SHUT_RDWR);
             }
@@ -1730,26 +1823,21 @@ void UR_V16X_Posix::process_event_stream()
                 if (!client.evtwebsock_ping) {
                     continue;
                 }
-
                 clients[i]->evtwebsock_ping = false;
                 memset(msg, '\0', MAX_BUFF);
                 char buftmp[MAX_BUFF] = {0};
-                sprintf(buftmp, "{\"len\":%u,\"clid\":\"%d\",\"fd\":%d}", sizeof(buftmp), client.clid, client.connfd);
+                sprintf(buftmp, "{\"len\":%lu,\"clid\":\"%d\",\"fd\":%d}", (long unsigned int)sizeof(buftmp), (int)client.clid, client.connfd);
                 _encode_hybi(buftmp, strlen(buftmp), msg, MAX_BUFF, OPCODE_BINARY);
                 writen(client.connfd, msg, strlen(msg));
             }
         }
     }
-
-    pthread_mutex_unlock(&clients_mutex);
+    THREAD_UNLOCK(process_mutex);
 }
 
 void UR_V16X_Posix::_client_transaction(TYPE_TRANSACTION_E typetr, events_transaction_t &data_transaction)
 {
     netsocket_inf_t *client = _get_client(data_transaction.fd);
-
-    while (pthread_mutex_trylock(&clients_mutex) == 0) {
-    }
 
     if (client != NULL) {
         switch (typetr) {
@@ -1781,7 +1869,6 @@ void UR_V16X_Posix::_client_transaction(TYPE_TRANSACTION_E typetr, events_transa
             break;
         }
     }
-    pthread_mutex_unlock(&clients_mutex);
 }
 
 void UR_V16X_Posix::_set_client_event_stream(int fd, bool event_stream)
@@ -1806,22 +1893,21 @@ bool UR_V16X_Posix::_has_client_event_stream(int fd)
 
 UR_V16X_Posix::netsocket_inf_t *UR_V16X_Posix::_get_client(int fd)
 {
-    while (pthread_mutex_trylock(&clients_mutex) == 0) {
-    }
+    THREAD_TRY_LOCK_BLOCK(clients_mutex);
 
-    netsocket_inf_t *clientinf = NULL;
+    uint16_t clientpos = (uint16_t)-1;
 
     for (uint16_t i = 0; i < V16X_MAX_CLIENTS; ++i) {
         if (clients[i] != NULL) {
             if (clients[i]->connfd == fd) {
-                clientinf = clients[i];
+                clientpos = i;
                 break;
             }
         }
     }
-    pthread_mutex_unlock(&clients_mutex);
+    THREAD_UNLOCK(clients_mutex);
 
-    return clientinf;
+    return (clientpos != (uint16_t)-1) ? clients[clientpos] : NULL;
 }
 
 void UR_V16X_Posix::_set_client_event_websocket(int fd, bool event_websocket)
@@ -1856,9 +1942,6 @@ bool UR_V16X_Posix::_has_client_same_ip(sockaddr_in cliaddr)
 {
     bool ret = false;
 
-    while (pthread_mutex_trylock(&clients_mutex) == 0) {
-    }
-
     for (uint16_t i = 0; i < V16X_MAX_CLIENTS; ++i) {
         if (clients[i] != NULL) {
             if (clients[i]->clientaddr.sin_addr.s_addr == cliaddr.sin_addr.s_addr) {
@@ -1867,7 +1950,6 @@ bool UR_V16X_Posix::_has_client_same_ip(sockaddr_in cliaddr)
             }
         }
     }
-    pthread_mutex_unlock(&clients_mutex);
 
     return ret;
 }
@@ -1907,9 +1989,6 @@ bool UR_V16X_Posix::_has_ip_method_get(sockaddr_in cliaddr)
 
 void UR_V16X_Posix::_get_client(TYPE_TRANSACTION_E typetr, netsocket_inf_t &client)
 {
-    while (pthread_mutex_trylock(&clients_mutex) == 0) {
-    }
-
     for (uint16_t i = 0; i < V16X_MAX_CLIENTS; ++i) {
         if (clients[i] == NULL) {
             continue;
@@ -1921,8 +2000,6 @@ void UR_V16X_Posix::_get_client(TYPE_TRANSACTION_E typetr, netsocket_inf_t &clie
             }
         }
     }
-
-    pthread_mutex_unlock(&clients_mutex);
 }
 
 int UR_V16X_Posix::_get_ip_host(char *host, int len)
