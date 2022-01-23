@@ -100,7 +100,7 @@ bool UR_V16X_DeepService::has_key(const query_param_t *params, uint32_t offset, 
 {
     bool ret = false;
     for (uint32_t i = offset; i < cnt; i++) {
-        if (params[i].key == NULL) {
+        if ((params[i].key == NULL) || (params[i].key == nullptr)) {
             continue;
         }
 
@@ -122,11 +122,13 @@ uint32_t UR_V16X_DeepService::destroy_qparams(query_param_t *params, uint32_t cn
 {
     uint32_t i;
     for (i = 0; i < cnt; i++) {
-        if (params[i].key) {
-            free(params[i].key);
+        if ((params[i].key == NULL) || (params[i].key == nullptr)) {
+            delete[] params[i].key;
+            params[i].key = NULL;
         }
-        if (params[i].val) {
-            free(params[i].val);
+        if ((params[i].val == NULL) || (params[i].val == nullptr)) {
+            delete[] params[i].val;
+            params[i].val = NULL;
         }
     }
 
@@ -205,7 +207,7 @@ bool UR_V16X_DeepService::execute_qstr(const query_param_t *qparams, uint32_t cn
         uint64_t keylen = strlen(qparams[idx_cmd].key);
         char keytmp[keylen + 1] = {0};
         memcpy(keytmp, qparams[idx_cmd].key, keylen);
-        SHAL_SYSTEM::printf("%sDATA SDS executed key:%s %s val: %s idx: %d vallen: %lu keylen: %lu\n", COLOR_PRINTF_BLUE(1), COLOR_PRINTF_RESET, keytmp, valtmp, (int)idx_cmd, vallen, keylen);
+        SHAL_SYSTEM::printf("%sDATA SDS executed key:%s %s val: %s idx: %d vallen: %lu keylen: %lu\n", COLOR_PRINTF_BLUE(1), COLOR_PRINTF_RESET, keytmp, valtmp, (int)idx_cmd, (long unsigned int)vallen, (long unsigned int)keylen);
 #endif // V16X_DEBUG
     }
     return ret;
