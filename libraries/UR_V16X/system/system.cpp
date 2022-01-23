@@ -97,7 +97,7 @@ namespace SHAL_SYSTEM {
     pthread_t isr_timer_thread;
     pthread_attr_t thread_attr_timer;
 
-    pthread_mutex_t getvstdout_mutex = PTHREAD_MUTEX_INITIALIZER;
+    pthread_mutex_t getvstdout_mutex;
 
     static struct {
         struct timeval start_time;
@@ -117,7 +117,6 @@ void SHAL_SYSTEM::system_shal_shutdown()
     sig_evt = 1;
     _isr_timer_running = false;
     pthread_join(isr_timer_thread, NULL);
-    pthread_join(run_proc_thread, NULL);
     delay_sec(1);
     SHAL_SYSTEM::printf("Shutdown system OK\n");
 }
@@ -140,7 +139,8 @@ void SHAL_SYSTEM::init()
     _timer_suspended = false;
     _timer_event_missed = false;
     _num_timer_procs = 0;
-    getvstdout_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+    pthread_mutex_init(&getvstdout_mutex, NULL);
 
     for (uint16_t i = 0; i < 20; i++) {
         vstdout_buf[i] = "";
