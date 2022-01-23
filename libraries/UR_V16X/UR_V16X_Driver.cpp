@@ -62,6 +62,7 @@ void UR_V16X_Driver::_copy_client_to_frontend(uint8_t endpoint, int client_id, b
             break;
         }
     }
+    //_frontend.endpoints[endpoint].client_cnt = client_cnt;
 #if V16X_DEBUG >= 2
     SHAL_SYSTEM::printf("+++++COPY FRONTEND Client ID: %d pos %d\n\n", client_id, client_cnt);
     _frontend.print_endpoints_data();
@@ -72,7 +73,7 @@ void UR_V16X_Driver::_copy_client_to_frontend(uint8_t endpoint, int client_id, b
 void UR_V16X_Driver::_delete_client_from_frontend(uint8_t endpoint, int client_id, unsigned int client_cnt)
 {
     for (uint16_t i = 0; i < V16X_MAX_CLIENTS; i++) {
-        if (_frontend.endpoints[endpoint].clients[i]) {
+        if (_frontend.endpoints[endpoint].clients[i] != NULL) {
             if (_frontend.endpoints[endpoint].clients[i]->client_id == client_id) {
                 delete _frontend.endpoints[endpoint].clients[i];
                 _frontend.endpoints[endpoint].clients[i] = NULL;
@@ -80,12 +81,12 @@ void UR_V16X_Driver::_delete_client_from_frontend(uint8_t endpoint, int client_i
                 SHAL_SYSTEM::printf("*****REMOVE Client ID: %d pos %d\n", client_id, i);
                 fflush(stdout);
 #endif
-                //_frontend.endpoints[endpoint].client_cnt = client_cnt;
+                _frontend.endpoints[endpoint].client_cnt = client_cnt;
                 break;
             }
         }
     }
-    _frontend.endpoints[endpoint].client_cnt = client_cnt;
+    //_frontend.endpoints[endpoint].client_cnt = client_cnt;
 }
 
 void UR_V16X_Driver::driver_fire_process()
