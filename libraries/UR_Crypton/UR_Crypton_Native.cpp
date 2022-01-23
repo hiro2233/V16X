@@ -133,8 +133,8 @@ int UR_Crypton_Native::b64_enc(char *output, int outputLen, const char *input, i
 {
 	int i = 0, j = 0;
 	int encLen = 0;
-	unsigned char a3[3];
-	unsigned char a4[4];
+	unsigned char a3[3] = {0};
+	unsigned char a4[4] = {0};
 
 	while(inputLen--) {
 		a3[i++] = *(input++);
