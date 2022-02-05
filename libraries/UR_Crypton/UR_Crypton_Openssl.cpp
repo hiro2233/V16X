@@ -78,12 +78,12 @@ int UR_Crypton_Openssl::b64_enc(char *output, int outputLen, const char *input, 
     BIO_get_mem_ptr(buff, &ptr);
     len = ptr->length;
 
-    memcpy(output, ptr->data, outputLen < len ? outputLen : len);
-    output[outputLen < len ? outputLen : len] = '\0';
+    memcpy(output, ptr->data, (size_t)outputLen < len ? outputLen : len);
+    output[(size_t)outputLen < len ? outputLen : len] = '\0';
 
     BIO_free_all(buff);
 
-    if (outputLen < len)
+    if ((size_t)outputLen < len)
         return -1;
 
     return len;
