@@ -116,6 +116,7 @@ void SHAL_SYSTEM::system_shal_shutdown()
     pthread_mutex_unlock(&getvstdout_mutex);
     sig_evt = 1;
     _isr_timer_running = false;
+    pthread_join(run_proc_thread, NULL);
     pthread_join(isr_timer_thread, NULL);
     delay_sec(1);
     SHAL_SYSTEM::printf("Shutdown system OK\n");
@@ -220,9 +221,11 @@ void SHAL_SYSTEM::panic(const char *errormsg, ...)
 #endif // SHAL_LIB
 
     for(;;) {
+#ifdef SHAL_LIB
         if (sig_evt) {
             break;
         }
+#endif // SHAL_LIB
 #ifndef SHAL_LIB
         fflush(stdout);
 #endif // SHAL_LIB
