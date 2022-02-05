@@ -264,9 +264,9 @@ void UR_V16X_Posix::update(void)
             sslmain = SSL_new(ctxmain);
             SSL_set_fd(sslmain, connfd);
 
-            //SSL_accept(sslmain);
-            SSL_set_accept_state(sslmain);
-            //SSL_CTX_set_mode(ctxmain, SSL_MODE_ENABLE_PARTIAL_WRITE);
+            SSL_accept(sslmain);
+            //SSL_set_accept_state(sslmain);
+            SSL_set_mode(sslmain, SSL_MODE_ENABLE_PARTIAL_WRITE | SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
         }
 #endif
 
@@ -398,6 +398,12 @@ void UR_V16X_Posix::client_slot_delete(uint32_t clid_slot)
     for (uint16_t i = 0; i < V16X_MAX_CLIENTS; ++i) {
         if (clients[i] != NULL) {
             if (clients[i]->clid == clid_slot) {
+#if (CRYPTON_TYPE == CRYPTON_OPENSSL)
+                if (clients[i]->ssl != NULL) {
+                    //SSL_clear(clients[i]->ssl);
+                    SSL_free(clients[i]->ssl);
+                }
+#endif
                 free(clients[i]);
                 clients[i] = NULL;
                 break;
@@ -513,6 +519,10 @@ void UR_V16X_Posix::fire_process()
 
     SHAL_SYSTEM::printf("Closed connection ( CLID: %d ) fd: %d Address: %s:%d\n\n", netsocket_info->clid, netsocket_info->connfd, inet_ntoa(netsocket_info->clientaddr.sin_addr), ntohs(netsocket_info->clientaddr.sin_port));
 
+#if (CRYPTON_TYPE == CRYPTON_OPENSSL)
+    SSL_shutdown(netsocket_info->ssl);
+#endif
+
     close(netsocket_info->connfd);
     shutdown(netsocket_info->connfd, SHUT_RDWR);
 
@@ -603,7 +613,7 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *_clientaddr)
         char msg[MAX_BUFF + 50] = {0};
         if (strcmp(req.filename, "data") == 0) {
             status = 200;
-            query_param_t params1[10] = {NULL};
+            query_param_t params1[10];
             uint32_t ret1 = 0;
             int lenquery1 = strlen(query_string);
             char query_temp1[lenquery1 + 1] = {0};
@@ -630,7 +640,7 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *_clientaddr)
             SHAL_SYSTEM::printf("\tDATA PARSING STORED ////////  %s\n", data_parsed.data);
 #endif // V16X_DEBUG
 
-            query_param_t params2[10] = {NULL};
+            query_param_t params2[10];
             uint32_t ret2 = 0;
             int lenquery2 = strlen(data_parsed.data);
             char query_temp2[lenquery2 + 1] = {0};
@@ -684,7 +694,7 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *_clientaddr)
         }
 
         if (strcmp(req.filename, "sds") == 0) {
-            query_param_t split_querystr[10] = {NULL};
+            query_param_t split_querystr[10];
             char *ret_msg[1] = {0};
             char qstrtemp[strlen(query_string) + 1] = {0};
             memcpy(qstrtemp, query_string, strlen(query_string));
@@ -695,7 +705,7 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *_clientaddr)
             deepsrv.print_query_params(split_querystr, ret_params);
             deepsrv.process_qparams(split_querystr, ret_params, ret_msg);
             deepsrv.destroy_qparams(split_querystr, ret_params);
-            if (ret_msg[0] != 0) {
+            if (ret_msg[0] != NULL) {
                 handle_message_outhttp(fd, ret_msg[0]);
                 free(ret_msg[0]);
                 return ret;
@@ -760,7 +770,7 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *_clientaddr)
             serve_static(fd, ffd, _clientaddr, &req, sbuf.st_size);
 
             if (cgi_query) {
-                query_param_t params3[10] = {NULL};
+                query_param_t params3[10];
                 uint32_t ret3 = 0;
                 int lenquery3 = strlen(query_string);
                 char query_temp3[lenquery3 + 1] = {0};
@@ -992,6 +1002,10 @@ int UR_V16X_Posix::_decode_hybi(char *src, size_t srclength, char *target, int t
 
     target[payload_length + 1] = '\0';
     *left = remaining;
+    if (*opcode & OPCODE_TEXT) {
+        target_offset = payload_length;
+    }
+
     return target_offset;
 }
 
@@ -1014,10 +1028,10 @@ uint8_t UR_V16X_Posix::parse_request(int fd, http_request_t *req)
         return closed;
     }
 
-    query_param_t split_params[20] = {NULL};
-    uint32_t ret_params = deepsrv.parse_query(buf, '\n', 0, split_params, 20);
+    query_param_t split_params[20];
+    uint32_t ret_params = deepsrv.parse_query(buf, 0x0A, 0, split_params, 20);
 #if V16X_DEBUG >= 99
-    SHAL_SYSTEM::printf("%sEvents prints%s\n", COLOR_PRINTF_WHITE(0), COLOR_PRINTF_RESET);
+    SHAL_SYSTEM::printf("%sEvents prints%s %s\n", COLOR_PRINTF_WHITE(1), COLOR_PRINTF_RESET, buf);
     deepsrv.print_query_params(split_params, ret_params);
 #endif
     uint32_t idx_param;
@@ -1063,7 +1077,8 @@ uint8_t UR_V16X_Posix::parse_request(int fd, http_request_t *req)
         sprintf(bufevt, "HTTP/1.1 %d Switching Protocols\r\n", 101);
         sprintf(bufevt + strlen(bufevt), "Server:%s\r\n", SERVER_VERSION);
         sprintf(bufevt + strlen(bufevt), "Connection:%s\r\n", "Upgrade");
-        sprintf(bufevt + strlen(bufevt), "Access-Control-Allow-Origin:%s\r\n", "*");
+        //sprintf(bufevt + strlen(bufevt), "Access-Control-Allow-Origin:%s\r\n", "*");
+        sprintf(bufevt + strlen(bufevt), "Content-type:%s\r\n", "application/octet-stream");
         sprintf(bufevt + strlen(bufevt), "%s", "Upgrade:websocket\r\n");
         sprintf(bufevt + strlen(bufevt), "Date:%s\r\n", SHAL_SYSTEM::get_date());
         sprintf(bufevt + strlen(bufevt), "Sec-WebSocket-Accept:%s\r\n\r\n", b64enc);
@@ -1114,20 +1129,33 @@ uint8_t UR_V16X_Posix::parse_request(int fd, http_request_t *req)
 
     memcpy(buftmp, buf, dat_io.io_cnt);
     len = _decode_hybi(buftmp, dat_io.io_cnt, wsdec, MAX_BUFF, &opcode, &left);
-    (void)len;
 
-    if (strstr(wsdec, "V16X")) {
+    if (left == 0) {
+        test_s tstwsocknativ;
+        memset(&tstwsocknativ, 0, sizeof(test_s));
+        memcpy(&tstwsocknativ, &wsdec[0], sizeof(test_s));
+        SHAL_SYSTEM::printf("%s V16X decoded websocket msg:%s %s d1: %d d2: %d d3: %d rawlen: %d lenret: %d leftlen: %d \n", COLOR_PRINTF_PURPLE(1), COLOR_PRINTF_RESET, \
+                            wsdec, tstwsocknativ.data1, tstwsocknativ.data2, tstwsocknativ.data3, dat_io.io_cnt, len, left);
+    }
+
+    if (strstr(wsdec, "V16X") && ((len - 5) > 1)) {
         _set_client_event_websocket(fd, true);
-        char header[10] = {0};
         char query_str[MAX_BUFF] = {0};
-        query_param_t split_querystr[10] = {NULL};
+        char *ret_msg[1] = {0};
+        query_param_t split_querystr[10];
 
-        sscanf(wsdec, "%s %s", header, query_str);
-        ret_params = deepsrv.parse_query(query_str, '&', '=', split_querystr, 10);
+        memcpy(&query_str[0], &wsdec[5], len - 5);
+
+        ret_params = deepsrv.parse_query_bin(query_str, (uint32_t)(len - 5), '&', '=', split_querystr, 10);
 
         SHAL_SYSTEM::printf("\nSDS SOCKET Params GET count: %d query_str: %s\n", ret_params, query_str);
         deepsrv.print_query_params(split_querystr, ret_params);
+        deepsrv.process_qparams(split_querystr, ret_params, ret_msg);
         deepsrv.destroy_qparams(split_querystr, ret_params);
+
+        if (ret_msg[0] != NULL) {
+            free(ret_msg[0]);
+        }
 
 #if V16X_DEBUG >= 2
         netsocket_inf_t *client = _get_client(fd);
@@ -1284,8 +1312,10 @@ void UR_V16X_Posix::serve_static(int out_fd, int in_fd, struct sockaddr_in *c_ad
         return;
     }
 
+#if defined(__MSYS__) || defined(__MINGW32__) || (CRYPTON_TYPE == CRYPTON_OPENSSL)
     //int64_t end_rng_siz = MAX_BUFF * 512 * 1;
     int64_t end_rng_siz = 2048;
+#endif
 
     if (req->offset > 0) {
         sprintf(buf, "%s", "HTTP/1.1 206 Partial Content\r\n");
@@ -1328,6 +1358,7 @@ void UR_V16X_Posix::serve_static(int out_fd, int in_fd, struct sockaddr_in *c_ad
 
     int64_t offset = (int64_t)req->offset;
     int64_t offsettmp = (int64_t)req->offset;
+    (void)offset;
 
 #if V16X_DEBUG >= 1
     int64_t end = (int64_t)req->end;
@@ -1794,7 +1825,6 @@ void UR_V16X_Posix::process_event_stream()
     }
 
     char msg[MAX_BUFF] = {0};
-    static uint32_t last = SHAL_SYSTEM::millis32();
     uint32_t now = SHAL_SYSTEM::millis32();
 
     if ((now - last) < PROCESS_EVENT_INTERVAL) {
@@ -1823,12 +1853,20 @@ void UR_V16X_Posix::process_event_stream()
                 if (!client.evtwebsock_ping) {
                     continue;
                 }
+
+                testwebsock.data1 = testwebsock.data1 + 5;
+                testwebsock.data2 = 7936;
+                testwebsock.data3 = 22;
                 clients[i]->evtwebsock_ping = false;
+                //clients[i]->sending = 1;
                 memset(msg, '\0', MAX_BUFF);
                 char buftmp[MAX_BUFF] = {0};
-                sprintf(buftmp, "{\"len\":%lu,\"clid\":\"%d\",\"fd\":%d}", (long unsigned int)sizeof(buftmp), (int)client.clid, client.connfd);
-                _encode_hybi(buftmp, strlen(buftmp), msg, MAX_BUFF, OPCODE_BINARY);
-                writen(client.connfd, msg, strlen(msg));
+                memcpy(buftmp, &testwebsock, sizeof(test_s));
+                //sprintf(buftmp, "{\"len\":%lu,\"clid\":\"%d\",\"fd\":%d}", (long unsigned int)sizeof(buftmp), (int)client.clid, client.connfd);
+                int lenenc = _encode_hybi(buftmp, sizeof(test_s), msg, MAX_BUFF, OPCODE_BINARY);
+                if (lenenc > 0) {
+                    writen(client.connfd, msg, lenenc);
+                }
             }
         }
     }

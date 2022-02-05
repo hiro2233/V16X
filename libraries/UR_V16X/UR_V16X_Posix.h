@@ -192,6 +192,8 @@ private:
 
     typedef struct sockaddr SA;
     data_parsed_t data_parsed;
+    uint32_t last = 0;
+    test_s testwebsock;
 
     // open port to listen
     int open_listenfd(int port);
