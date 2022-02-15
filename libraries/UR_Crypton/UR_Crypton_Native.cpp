@@ -172,8 +172,8 @@ int UR_Crypton_Native::b64_dec(char * output, char * input, int inputLen)
 {
 	int i = 0, j = 0;
 	int decLen = 0;
-	unsigned char a3[3];
-	unsigned char a4[4];
+	unsigned char a3[3] = {0};
+	unsigned char a4[4] = {0};
 
 	while (inputLen--) {
 		if(*input == '=') {
