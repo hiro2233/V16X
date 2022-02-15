@@ -244,10 +244,11 @@ void UR_V16X_Posix::update(void)
         // update and clients process connections timeout.
         while (cli_count + 50 >= V16X_MAX_CLIENTS) {
             if (_has_client_same_ip(clientaddrin)) {
+                client_error(connfd, 500, "Error: Max Clients", "Error: Max Clients reached");
                 close(connfd);
                 return;
             }
-            SHAL_SYSTEM::delay_ms(1);
+            SHAL_SYSTEM::delay_ms(10);
         }
 
         // Check if max clients is reached. This need to be lower and relative to
@@ -485,12 +486,14 @@ void UR_V16X_Posix::fire_process()
 
     THREAD_UNLOCK(process_mutex);
 
+    uint32_t timeout = SHAL_SYSTEM::millis32();
+    uint32_t lastime = 0;
     uint16_t pollcnt = 0;
     while(rlen == 0 && netsocket_info->is_attached && pollcnt < TIMEOUT_FIREPROC) {
         if (poll_in(netsocket_info->connfd, FIREPROC_POLLIN_INTERVAL)) {
             rlen = process(netsocket_info->connfd, &netsocket_info->clientaddr);    // Process all incomming data
 #if V16X_DEBUG >= 1
-            SHAL_SYSTEM::printf("POLLCNT: %d rlen:%d ( CLID: %d ) fd: %d Address: %s:%d\n\n", pollcnt, rlen, netsocket_info->clid, netsocket_info->connfd, inet_ntoa(netsocket_info->clientaddr.sin_addr), ntohs(netsocket_info->clientaddr.sin_port));
+            SHAL_SYSTEM::printf("%sPOLLCNT: %d %s rlen:%d ( CLID: %d ) fd: %d Address: %s:%d\n\n", COLOR_PRINTF_RED(0), pollcnt, COLOR_PRINTF_RESET, rlen, netsocket_info->clid, netsocket_info->connfd, inet_ntoa(netsocket_info->clientaddr.sin_addr), ntohs(netsocket_info->clientaddr.sin_port));
 #endif // V16X_DEBUG
         }
 
@@ -499,6 +502,11 @@ void UR_V16X_Posix::fire_process()
         }
 
         if (!netsocket_info->event_stream) {
+            uint32_t now = (SHAL_SYSTEM::millis32() - timeout) / 1000;
+            if (lastime != now) {
+                lastime = now;
+                SHAL_SYSTEM::printf("%sTimeLeft: %d POLLCNT CNT: %d rlen:%d ( CLID: %d ) fd: %d Address: %s:%d %s\n", COLOR_PRINTF_RED(1), (int)((TIMEOUT_FIREPROC * FIREPROC_POLLIN_INTERVAL) / 1000) - now, pollcnt, rlen, netsocket_info->clid, netsocket_info->connfd, inet_ntoa(netsocket_info->clientaddr.sin_addr), ntohs(netsocket_info->clientaddr.sin_port), COLOR_PRINTF_RESET);
+            }
             pollcnt++;
         }
     }
@@ -524,7 +532,7 @@ void UR_V16X_Posix::fire_process()
 #endif
 
     close(netsocket_info->connfd);
-    shutdown(netsocket_info->connfd, SHUT_RDWR);
+    //shutdown(netsocket_info->connfd, SHUT_RDWR);
 
     cli_count--;
     _delete_client_from_frontend(_endpoint, netsocket_info->clid, (unsigned int)cli_count);
@@ -548,6 +556,23 @@ bool UR_V16X_Posix::poll_in(int fd, uint32_t timeout_ms)
         return false;
     }
 
+    return true;
+}
+
+bool UR_V16X_Posix::_poll_out(int fd, uint32_t timeout_ms)
+{
+    fd_set fds;
+    struct timeval tv;
+
+    FD_ZERO(&fds);
+    FD_SET(fd, &fds);
+
+    tv.tv_sec = timeout_ms / 1000;
+    tv.tv_usec = (timeout_ms % 1000) * 1000UL;
+
+    if (select(FD_SETSIZE, NULL, &fds, NULL, &tv) != 1) {
+        return false;
+    }
     return true;
 }
 
@@ -1326,7 +1351,7 @@ void UR_V16X_Posix::serve_static(int out_fd, int in_fd, struct sockaddr_in *c_ad
         sprintf(buf + strlen(buf), "Connection:%s\r\n", "Keep-Alive");
         sprintf(buf + strlen(buf), "Keep-Alive:%s,%s\r\n", "timeout=10", "max=30");
         //sprintf(buf + strlen(buf), "Cache-Control:max-age=0,stale-while-revalidate=30\r\n");
-        sprintf(buf + strlen(buf), "Cache-Control: no-cache\r\n");
+        //sprintf(buf + strlen(buf), "Cache-Control: no-cache\r\n");
         //sprintf(buf + strlen(buf), "Cache-Control: no-store\r\n");
         //sprintf(buf + strlen(buf), "Cache-Control: max-age=0, must-revalidate\r\n");
         //sprintf(buf + strlen(buf), "Clear-Site-Data: \"cache\"\r\n");
@@ -1346,7 +1371,7 @@ void UR_V16X_Posix::serve_static(int out_fd, int in_fd, struct sockaddr_in *c_ad
         sprintf(buf + strlen(buf), "Cache-Control:max-age=0,stale-while-revalidate=30\r\n");
         //sprintf(buf + strlen(buf), "Cache-Control: max-age=0, must-revalidate\r\n");
         //sprintf(buf + strlen(buf), "Cache-Control: no-store\r\n");
-        sprintf(buf + strlen(buf), "Clear-Site-Data: \"cache\"\r\n");
+        //sprintf(buf + strlen(buf), "Clear-Site-Data: \"cache\"\r\n");
         //sprintf(buf + strlen(buf), "Cache-Control: no-cache\r\n");
         //sprintf(buf + strlen(buf), "Cache-Control:public,max-age=315360000\r\nExpires:Thu,31 Dec 2037 23:55:55 GMT\r\n");
         sprintf(buf + strlen(buf), "Content-type:%s\r\n", get_mime_type(filetmp));
@@ -1453,7 +1478,7 @@ void UR_V16X_Posix::serve_static(int out_fd, int in_fd, struct sockaddr_in *c_ad
 #endif // V16X_DEBUG
             break;
         }
-        offsettmp += (int64_t)offtmp;
+        offsettmp = (int64_t)offtmp;
         //break;
 #endif // __MSYS__
     }
@@ -1667,23 +1692,20 @@ ssize_t UR_V16X_Posix::io_data_read(data_io_t *data_iop, char *usrbuf, size_t ma
         memcpy(usrbuf, data_iop->io_buf, data_iop->io_cnt);
     }
 
-    if ((errno == EAGAIN) || (errno == ETIMEDOUT)) {
+    if ((errno == EAGAIN) && (data_iop->io_cnt > 0)) {
 #if V16X_DEBUG >= 1
         SHAL_SYSTEM::printf("%sfunct-io %s 4 cnt:%s %d buf: %s\n", COLOR_PRINTF_RED(0), __func__, COLOR_PRINTF_RESET, data_iop->io_cnt, data_iop->io_buf);
 #endif // V16X_DEBUG
-        *closed = 1;
-        return -1;
+        return data_iop->io_cnt;
     }
 
-    if ((data_iop->io_cnt <= 0) || (errno == EINTR) || (errno == ECONNRESET) || (errno == EPIPE)) {
+    if ((errno == EAGAIN) || (data_iop->io_cnt <= 0) || (errno == EINTR) || (errno == ECONNRESET) || (errno == EPIPE) || (errno == ETIMEDOUT)) {
 #if V16X_DEBUG >= 1
         SHAL_SYSTEM::printf("%sfunct-io %s 3 cnt:%s %d - error: %d\n", COLOR_PRINTF_PURPLE(0), __func__, COLOR_PRINTF_RESET, data_iop->io_cnt, errno);
 #endif // V16X_DEBUG
         *closed = 1;
         return -1;
     }
-
-
     return data_iop->io_cnt;
 }
 
@@ -1744,6 +1766,7 @@ ssize_t UR_V16X_Posix::writen(int fd, const void *usrbuf, size_t n)
 #endif
 
     while (nleft > 0) {
+        uint32_t lapcnt = 0;
         if ((nwritten = sendto(fd, bufp, nleft, 0, &addr, clientlen)) <= 0) {
         //if ((nwritten = write(fd, bufp, nleft)) <= 0) {
 #if V16X_DEBUG >= 1
@@ -1769,9 +1792,24 @@ ssize_t UR_V16X_Posix::writen(int fd, const void *usrbuf, size_t n)
                 return n - nleft;
             }
         }
+
         nleft -= nwritten;
         bufp += nwritten;
+
+        // wait until send all data, otherwise return the amount data sent
+        // if the timeout was reached.
+        while (!_poll_out(fd, TIMEOUT_POLLOUT_INTERVAL)) {
+            if (lapcnt >= LAP_TIMEOUT_WRITEN) {
+                return n - nleft;
+            }
+            lapcnt++;
+#if V16X_DEBUG >= 1
+            SHAL_SYSTEM::printf("**** [WRITEN WAITING CLID] : %d  fd: %d Address:  %s:%d ****\n\n", client->clid, fd, inet_ntoa(client->clientaddr.sin_addr), ntohs(client->clientaddr.sin_port));
+#endif // V16X_DEBUG
+        }
+
     }
+
     return n;
 }
 
@@ -1842,10 +1880,19 @@ void UR_V16X_Posix::process_event_stream()
                 if (!client.evtstr_ping) {
                     continue;
                 }
-                //clients[i]->evtstr_ping = false;
+                clients[i]->evtstr_ping = false;
+
+                sock_testsse.data1 = sock_testsse.data1 + 10;
+                sock_testsse.data2 = 7168;
+                sock_testsse.data3 = 59;
                 memset(msg, '\0', MAX_BUFF);
-                sprintf(msg, "retry:1000\nid:%d\ndata:{\"len\":%lu,\"clid\":\"%d\",\"fd\":%d}\n\n", client.clid, (long unsigned int)sizeof(msg), (int)client.clid, client.connfd);
+                char buftmp[MAX_BUFF] = {0};
+                //memcpy(buftmp, &sock_testsse, sizeof(test_s));
+
+                uint16_t lenb64 = ur_crypton.b64_enc(buftmp, MAX_BUFF, (const char*)&sock_testsse, sizeof(test_s));
+                sprintf(msg, "retry:1000\nid:%d\ndata:{\"len\":%lu,\"clid\":\"%d\",\"fd\":%d,\"dat\":\"%s\",\"lenb64\":%d}\n\n", client.clid, (long unsigned int)sizeof(msg), (int)client.clid, client.connfd,  buftmp, lenb64);
                 writen(client.connfd, msg, strlen(msg));
+                clients[i]->event_stream = false;
                 //shutdown(clients[i]->connfd, SHUT_RDWR);
             }
 
@@ -1854,19 +1901,26 @@ void UR_V16X_Posix::process_event_stream()
                     continue;
                 }
 
-                testwebsock.data1 = testwebsock.data1 + 5;
-                testwebsock.data2 = 7936;
-                testwebsock.data3 = 22;
+                sock_testweb.data1 = sock_testweb.data1 + 5;
+                sock_testweb.data2 = 7936;
+                sock_testweb.data3 = 22;
                 clients[i]->evtwebsock_ping = false;
                 //clients[i]->sending = 1;
                 memset(msg, '\0', MAX_BUFF);
                 char buftmp[MAX_BUFF] = {0};
-                memcpy(buftmp, &testwebsock, sizeof(test_s));
+                memcpy(buftmp, &sock_testweb, sizeof(test_s));
                 //sprintf(buftmp, "{\"len\":%lu,\"clid\":\"%d\",\"fd\":%d}", (long unsigned int)sizeof(buftmp), (int)client.clid, client.connfd);
                 int lenenc = _encode_hybi(buftmp, sizeof(test_s), msg, MAX_BUFF, OPCODE_BINARY);
                 if (lenenc > 0) {
                     writen(client.connfd, msg, lenenc);
+
+                    memset(msg, '\0', MAX_BUFF);
+                    sprintf(buftmp, "{\"len\":%lu,\"clid\":\"%d\",\"fd\":%d}", (long unsigned int)sizeof(buftmp), (int)client.clid, client.connfd);
+                    lenenc = _encode_hybi(buftmp, strlen(buftmp), msg, MAX_BUFF, OPCODE_TEXT);
+                    //SHAL_SYSTEM::delay_ms(100);
+                    writen(client.connfd, msg, lenenc);
                 }
+                //clients[i]->sending = 0;
             }
         }
     }

@@ -83,12 +83,14 @@
 
 #define MAX_LISTEN  1000  /* max connections */
 #define MAX_BUFF 2048
-#define PROCESS_EVENT_INTERVAL 2000 // Time in ms
+#define PROCESS_EVENT_INTERVAL 100 // Time in ms
 #define UPDATE_POLLIN_INTERVAL 40 // Time in ms
+#define TIMEOUT_POLLOUT_INTERVAL 10 // Time in ms
 #define FIREPROC_POLLIN_INTERVAL 20 // Time in ms
 #define OPCODE_TEXT    0x01
 #define OPCODE_BINARY  0x02
 #define TIMEOUT_FIREPROC   500 // Time in ms
+#define LAP_TIMEOUT_WRITEN   200
 
 class UR_V16X_Posix : public UR_V16X_Driver
 {
@@ -193,7 +195,8 @@ private:
     typedef struct sockaddr SA;
     data_parsed_t data_parsed;
     uint32_t last = 0;
-    test_s testwebsock;
+    test_s sock_testweb;
+    test_s sock_testsse;
 
     // open port to listen
     int open_listenfd(int port);
@@ -202,6 +205,7 @@ private:
     void client_slot_add(netsocket_inf_t *cl);
     void client_slot_delete(uint32_t clid_slot);
     bool poll_in(int fd, uint32_t timeout_ms);
+    bool _poll_out(int fd, uint32_t timeout_ms);
     uint8_t parse_request(int fd, http_request_t *req);
     void handle_message_outhttp(int fd, const char *longmsg);
     void log_access(int status, struct sockaddr_in *c_addr, http_request_t *req);
