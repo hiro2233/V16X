@@ -1,0 +1,869 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset='utf-8'/>
+    <meta name='viewport' content='width=device-width, initial-scale=1'>
+    <title>Hello World 1</title>
+    <style>
+        BODY, HTML {
+            width: 100%;
+            height: 100%;
+            font-size: 18px;
+            overflow: hidden;
+            color: white;
+            background-color: purple;
+        }
+        .scriptcpp {
+            width: 99%;
+            overflow: hidden;
+            margin: 0px;
+            display: block;
+            font-family: monospace;
+            font-size:2.0vw;
+        }
+
+        .display-canvas {
+            width: 100%;
+            height: 150px;
+            overflow: hidden;
+            margin: 0px;
+            display: block;
+        }
+
+        .display-canvas-mob {
+            width: 100%;
+            height: 100px;
+            overflow: hidden;
+            margin: 0px;
+            display: block;
+        }
+
+        /* the canvas *must not* have any border or padding, or mouse coords will be wrong */
+        canvas.display-canvas {
+            border: 0px none;
+            background-color: blue;
+            display: block;
+        }
+
+        textarea.scriptcpp {
+            width: 99%;
+            height: auto;
+            overflow-y: scroll;
+            font-family: monospace;
+            font-size:2.0vw;
+            display: block;
+        }
+
+        label.margins {
+            width: 100%;
+            font-family: monospace;
+            font-size:1.0vw;
+            display: block;
+            margin: 0.1%;
+        }
+
+        div.scriptcpp {
+            margin-left: auto;
+            margin-right: auto;
+            text-align: left;
+            font-family: monospace;
+            font-size:2.0vw;
+            display: block;
+        }
+
+        div.scriptcpp_border {
+            border: 1px solid black;
+        }
+
+        .left-align {
+            display: block;
+            float: left;
+            margin-right: 1%;
+            font-size:1.0vw;
+            font-family: monospace;
+        }
+
+        .right-align {
+            display: block;
+            float: right;
+            margin-left: 1%;
+            font-size:1.0vw;
+            font-family: monospace;
+        }
+
+        @-webkit-keyframes rotation {
+            from {
+                -webkit-transform: rotate(0deg);
+            }
+            to {
+                -webkit-transform: rotate(360deg);
+            }
+        }
+
+        @-moz-keyframes rotation {
+            from {
+                -moz-transform: rotate(0deg);
+            }
+            to {
+                -moz-transform: rotate(360deg);
+            }
+        }
+
+        @keyframes rotation {
+            from {
+                transform: rotate(0deg);
+            }
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .slidecontainer {
+            width: 99%;
+            display: block;
+        }
+
+        .slider {
+            -webkit-appearance: none;
+            width: 99%;
+            height: 40px;
+            background: #d3d3d3;
+            outline: none;
+            opacity: 1;
+            -webkit-transition: .2s;
+            transition: opacity .2s;
+            border-radius: 10px;
+            display: block;
+        }
+
+        .slider:hover {
+            opacity: 1;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 25px;
+            height: 40px;
+            background: #4CFF50;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        .slider::-moz-range-thumb {
+            width: 25px;
+            height: 40px;
+            background: #4CFF50;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+
+        @media all and (min-width: 0px) and (max-width: 960px) and (orientation: portrait) {
+            BODY, HTML {
+                background-color: blue;
+                width: 98%;
+                height: 98%;
+                font-size: 18px;
+                overflow: hidden;
+                color: white;
+            }
+            .scriptcpp {
+                width: 100%;
+                overflow: hidden;
+                margin: 0px;
+                display: block;
+                font-family: monospace;
+                font-size:3vw;
+            }
+
+            textarea.scriptcpp {
+                width: 98%;
+                height: auto;
+                overflow-y: scroll;
+                font-family: monospace;
+                font-size:3vw;
+                display: block;
+            }
+
+            .display-canvas {
+                width: 100%;
+                height: 220px;
+                overflow: hidden;
+                margin: 0px;
+                display: block;
+                border: 0px none;
+                display: block;
+            }
+
+            .display-canvas-mob {
+                width: 100%;
+                height: 170px;
+                overflow: hidden;
+                margin: 0px;
+                display: block;
+            }
+
+            /* the canvas *must not* have any border or padding, or mouse coords will be wrong */
+            canvas.display-canvas {
+                border: 0px none;
+                background-color: blue;
+                display: block;
+            }
+
+            label.scriptcpp{
+                width: 100%;
+                font-family: monospace;
+                font-size:3vw;
+                display: block;
+            }
+
+            div.scriptcpp {
+                margin-left: auto;
+                margin-right: auto;
+                text-align: left;
+                font-family: monospace;
+                font-size:3vw;
+                display: block;
+            }
+
+            .left-align {
+                display: block;
+                float: left;
+                margin-right: 1%;
+                font-size:3vw;
+                font-family: monospace;
+            }
+
+            .right-align {
+                display: block;
+                float: right;
+                margin-left: 1%;
+                font-size:3vw;
+                font-family: monospace;
+            }
+        }
+
+        @media all and (min-width: 340px) and (max-width: 1281px) and (orientation: portrait) {
+            BODY, HTML {
+                background-color: gray;
+                width: 98%;
+                height: 98%;
+                font-size: 18px;
+                overflow: hidden;
+                color: white;
+            }
+            .scriptcpp {
+                width: 100%;
+                overflow: hidden;
+                margin: 0px;
+                display: block;
+                font-family: monospace;
+                font-size:4vw;
+            }
+
+            textarea.scriptcpp {
+                width: 98%;
+                height: auto;
+                overflow-y: scroll;
+                font-family: monospace;
+                font-size:4vw;
+                display: block;
+            }
+
+            .display-canvas {
+                width: 100%;
+                height: 150px;
+                overflow: hidden;
+                margin: 0px;
+                display: block;
+                border: 0px none;
+                display: block;
+            }
+
+            .display-canvas-mob {
+                width: 100%;
+                height: 100px;
+                overflow: hidden;
+                margin: 0px;
+                display: block;
+            }
+
+            /* the canvas *must not* have any border or padding, or mouse coords will be wrong */
+            canvas.display-canvas {
+                border: 0px none;
+                background-color: blue;
+                display: block;
+            }
+
+            label.scriptcpp{
+                width: 100%;
+                font-family: monospace;
+                font-size:4vw;
+                display: block;
+            }
+
+            div.scriptcpp {
+                margin-left: auto;
+                margin-right: auto;
+                text-align: left;
+                font-family: monospace;
+                font-size:4vw;
+                display: block;
+            }
+
+            .left-align {
+                display: block;
+                float: left;
+                margin-right: 2%;
+                font-size:4vw;
+                font-family: monospace;
+            }
+
+            .right-align {
+                display: block;
+                float: right;
+                margin-left: 2%;
+                font-size:4vw;
+                font-family: monospace;
+            }
+
+          /* tablet   e.g. ipad/ipad pro */
+          @media all and (min-width: 400px) and (max-width: 1920px) and (orientation : landscape) {
+            BODY, HTML {
+                background-color: red;
+                width: 98%;
+                height: 98%;
+                font-size: 18px;
+                color: white;
+            }
+        }
+    }
+
+    </style>
+</head>
+<body>
+    <span>
+        <div class='scriptcpp'>
+            <button style='border-radius:5px;' class='left-align' id='draw_cube_btn' onclick='draw_cube_click();'>Autorotate Cube</button>
+            <button style='border-radius:5px;' class='left-align' id='stop_drawing_btn' onclick='stop_drawing_click();'>Stop</button>
+        </div>
+        <div class='scriptcpp'>
+            <label class='left-align'>Fps:</label>
+            <span class='left-align' id='fps'></span>
+        </div>
+        <div class='scriptcpp'>
+            <label class='left-align'>Angle:</label>
+            <span class='left-align' id='angle'></span>
+        </div>
+        <div class='scriptcpp'>
+            <center style='font-size:2.5vw; height: 50px;'>
+                    <span id='status'></span>
+            </center>
+        </div>
+    </span>
+    <div style='background-color: blue;'>
+        <center>
+              <canvas class='display-canvas' id='canvas'></canvas>
+        </center>
+    </div>
+    <hr></hr>
+    <div style='grid-template-columns: auto;grid-row: 1;display: grid; overflow: hidden;width: 100%;'>
+                <div style='grid-template-columns: auto;grid-row: 1;display: grid;width: 100%;padding: 0px;'>
+                <label class='left-align'>Rotate:</label>
+                <input class='slider' type='range' min='1' max='360' value='1' id='range_angle_slider'></input>
+                <label class='left-align' style='display:block;'>Val angle:<span id='range_label'></span></label>
+                </div>
+    </div>
+    <div>
+        <hr>
+            <textarea readonly style='font-size:2.5vw; border-radius:5px;' class='scriptcpp' id='output' rows='8'></textarea>
+        </hr>
+    </div>
+    <script>
+
+        var id = prompt("Enter an ID", "1234ABCD");
+        if (id == null)
+        {
+            id = 0;
+        }
+
+        var range_angle_slider = document.getElementById('range_angle_slider');
+        var range_label = document.getElementById('range_label');
+
+        var sw = false;
+        var stop = false;
+        var range_angle = 1;
+
+        var socket_module = typeof socket_module !== 'undefined' ? socket_module : {};
+
+        var Module = {
+
+        print:
+            (function()
+            {
+                var element = document.getElementById('output');
+                return function(text) {
+                    element.innerHTML += text + "\n";
+                    //element.scrollTop = element.scrollHeight;
+                };
+            })(),
+
+        canvas:
+            document.getElementById('canvas'),
+        setStatus:
+            function(text)
+            {
+                document.getElementById('status').innerHTML = text;
+                console.log(text);
+                if (text == "") {
+                    document.getElementById('status').hidden = false;
+                    setTimeout(tim1, 2000);
+                }
+            }
+        }
+
+        range_label.innerHTML = range_angle;
+        range_angle_slider.value = range_angle;
+
+        range_angle_slider.oninput = function()
+        {
+            range_label.innerHTML = this.value;
+        }
+
+        range_angle_slider.onmousedown = function(event)
+        {
+            range_label.innerHTML = this.value;
+        }
+
+        range_angle_slider.onmouseup = function(event)
+        {
+            range_angle = this.value;
+            range_label.innerHTML = range_angle;
+        }
+
+        range_angle_slider.onmouseleave = function(event)
+        {
+            range_label.innerHTML = range_angle;
+            this.value = range_angle;
+        }
+
+        range_angle_slider.onmouseenter = function(event)
+        {
+            range_label.innerHTML = range_angle;
+            this.value = range_angle;
+        }
+
+        function draw_cube_click()
+        {
+            if (typeof socket_module.tim_open_qbin != 'undefined') {
+                socket_module.tim_open_qbin();
+            } else {
+                console.log("socket tim open Undefined");
+            }
+        }
+
+        function stop_drawing_click()
+        {
+            tim_eventsocket();
+        }
+
+        var nVer = navigator.appVersion;
+        var nAgt = navigator.userAgent;
+        var browserName  = navigator.appName;
+        var fullVersion  = ''+parseFloat(navigator.appVersion);
+        var majorVersion = parseInt(navigator.appVersion,10);
+
+        function tim1()
+        {
+            if (typeof globals == 'undefined') {
+                sw = false;
+            } else {
+                sw = globals.initialized;
+            }
+
+            if (sw) {
+                var res_sum = globals.Sum(5, 5);
+                console.log("Tim1 Sum:", res_sum);
+                document.getElementById('status').innerHTML = "Tim1 Sum:" + res_sum;
+            } else {
+                console.log("Tim1 nel");
+            }
+        }
+
+        document.getElementById('status').innerHTML = "downloading... " + nVer.toString() + " - " + nAgt.toString();
+
+        function dirname(path)
+        {
+            return path.replace(/\\/g, '/').replace(/\/[^/]*\/?$/, '');
+        }
+
+        function tim_eventsource()
+        {
+            var evtSource = new EventSource('/data?id=' + id + 'stream');
+
+            evtSource.onopen = function() {
+                var open_msg = 'opened event';
+                console.log(open_msg);
+                if (sw) {
+                    var logsys = globals.set_stream_response(open_msg, open_msg.length);
+                    console.log("[OPEN STREAM evt] logsys", logsys, window.location);
+                    var urlpathname = dirname(window.location.pathname) + "/caquitas.js";
+                    var rdat = basename_js(urlpathname);
+                    console.log("[OPEN STREAM evt] rdat", rdat, urlpathname);
+                }
+            }
+
+            evtSource.addEventListener("ping", function(e) {
+                console.log("PING:",JSON.parse(e.data));
+                var ping_msg = "PING: " + e.data;
+                if (sw) {
+                    globals.set_stream_response(ping_msg, ping_msg.length);
+                }
+            }, false);
+
+            evtSource.addEventListener("pong", function(e) {
+                console.log("PONG:",JSON.parse(e.data));
+                var pong_msg = "PONG: " + e.data;
+                if (sw) {
+                    globals.set_stream_response(pong_msg, pong_msg.length);
+                }
+            }, false);
+
+            evtSource.onmessage = function(e) {
+                var jobj = JSON.parse(e.data);
+                console.log("[MESSAGE STREAM evt]:", jobj, "object:", e, "raw:", e.data, "dat:", jobj.dat);
+                document.getElementById('status').innerHTML = "[MESSAGE STREAM]:" + e.data.toString();
+                if (sw) {
+                    var logsys = globals.set_stream_response(e.data, e.data.length);
+                    console.log("[MSG STREAM] logsys", logsys);
+                    if (typeof socket_module.process_msg != 'undefined') {
+                        var resdat = stringToUint(atob(jobj.dat));
+                        socket_module.process_msg(resdat);
+                    } else {
+                        console.log("evtSource: process_msg Undefined");
+                    }
+                }
+            }
+
+            evtSource.onerror = function(e) {
+                var error_msg = "[EVT ERROR] connection down: " + e.type;
+                console.log(error_msg, e);
+                if (sw) {
+                    globals.set_stream_response(error_msg, error_msg.length);
+                }
+                evtSource.close();
+                setTimeout(tim_eventsource, 3000);
+            }
+        }
+
+        var cons_clear_cnt = 0;
+        function tim_eventsocket()
+        {
+            var host = window.location.host;
+            var socket = new WebSocket('ws://' + host + '/data?id=' + id + 'socket');
+            var cntsock = 0;
+            var tim_open_stop = 0;
+            var tim_open_qbin_stop = 0;
+            var tim_open_conslear_stop = 0;
+            var reconnect = false;
+
+            function reconnect_sock() {
+                if (reconnect) {
+                    if (sw) {
+                        var open_msg = "[reconnect socket] reconnecting... " + tim_open_stop;
+                        globals.console_printf(open_msg);
+                    }
+                    return;
+                }
+                reconnect = true;
+                if (sw) {
+                    var open_msg = "[clear interval-1] reconnecting... " + tim_open_stop;
+                    globals.console_printf(open_msg);
+                }
+                if ((tim_open_stop + tim_open_qbin_stop + tim_open_conslear_stop) > 0) {
+                    clearInterval(tim_open_stop);
+                    clearInterval(tim_open_qbin_stop);
+                    clearInterval(tim_open_conslear_stop);
+                    tim_open_stop = 0;
+                    tim_open_qbin_stop = 0;
+                    tim_open_conslear_stop = 0;
+                }
+                if (sw) {
+                    var open_msg = "[clear interval-2] reconnecting... " + tim_open_stop;
+                    globals.console_printf(open_msg);
+                }
+                setTimeout(tim_eventsocket, 2000);
+            }
+
+            function tim_open() {
+                cntsock++;
+                var str = "V16X qstr=2222&ping=" + cntsock;
+                var oMyBlob = new Blob([str], {type : 'application/octet-stream'}); // the blob
+                try {
+                    socket.send(oMyBlob);
+                } catch (error) {
+                    if (sw) {
+                        var open_msg = "[ERROR tim_open] " + error.toString();
+                        globals.console_printf(open_msg);
+                    }
+                }
+            }
+
+            var vcnt = new Uint8Array(1);
+            var vecttmpqbin = {
+                data1: {
+                    val: 0,
+                    type: "uint8",
+                },
+                data2: {
+                    val: 0,
+                    type: "uint16",
+                },
+                data3: {
+                    val: 0,
+                    type: "uint8",
+                },
+            };
+
+            function tim_open_qbin() {
+                if (socket.readyState == 1) {
+                    vcnt[0]++;
+                    vecttmpqbin.data1.val = vcnt[0];
+                    vecttmpqbin.data2.val = 0x2F00;
+                    vecttmpqbin.data3.val = 0x33;
+                    send_qbin(vecttmpqbin);
+                }
+            }
+
+            socket_module.tim_open_qbin = tim_open_qbin;
+
+            function tim_open_console_clear() {
+                if (cons_clear_cnt == 0) {
+                    //console.clear();
+                }
+                cons_clear_cnt++;
+                cons_clear_cnt = cons_clear_cnt % 20;
+            }
+
+            socket.addEventListener('open', function (event) {
+                var open_msg = "[open socket] Connection established";
+                console.log(open_msg);
+                if (sw) {
+                    globals.console_printf(open_msg);
+                }
+                console.log("Socket: sendingto server");
+                socket.send("V16X qstr=1111&INIT=1");
+                //tim_open_stop = setInterval(tim_open, 2000);
+                //tim_open_qbin_stop = setInterval(tim_open_qbin, 2000);
+                //tim_open_conslear_stop = setInterval(tim_open_console_clear, 1000);
+            });
+
+            function send_raw(data) {
+                socket.send(data);
+            }
+
+            function send_qstr(data) {
+                var dataarrstr = "V16X qstr=" + data.toString();
+                socket.send(dataarrstr);
+            }
+
+            function send_qbin(data) {
+                var dataobj1 = new UR_DataObj;
+                var datobjarray1 = dataobj1.get_array(data);
+
+                var dataarr = dataobj1.bin2strhex(datobjarray1);
+                testtmp = "array: " + dataarr.toString();
+                globals.console_printf(testtmp);
+
+                var dataarrstr = "V16X qbin=";
+                var stringdat = stringToUint(dataarrstr);
+
+                var arrbuf = new ArrayBuffer(stringdat.length + datobjarray1.length);
+                var dataconcat = new Uint8Array(arrbuf);
+                dataconcat.set(stringdat, 0);
+                dataconcat.set(datobjarray1, stringdat.length);
+
+                var oMyBlob = new Blob([dataconcat], {type : 'application/octet-stream'}); // the blob
+                if (socket.readyState == 1) {
+                    socket.send(oMyBlob);
+                }
+            }
+
+            function send_qstr_timeout(data) {
+                setTimeout(send_qstr(data), 100);
+            }
+
+            function send_raw_timeout(data) {
+                setTimeout(send_raw(data), 100);
+            }
+
+            function send_qbin_timeout(data, timeout) {
+                setTimeout(send_qbin(data), timeout);
+            }
+
+            function process_msg(datsonarray) {
+                var dataobj1 = new UR_DataObj;
+                var datsontmp = new Uint8Array(datsonarray);
+
+                console.log("[message recv SOCKET1]:", datsontmp, typeof datsontmp);
+                console.log("[message recv SOCKET2]:", datsontmp[0], datsontmp[1], datsontmp[2], datsontmp[3]);
+
+                var datson = dataobj1.bin2strhex(datsontmp);
+
+                if (sw) {
+                    globals.console_printf("[recv DATA SOCKET]:" + datsontmp[0].toString() + "," + datsontmp[1].toString() + " - datson:" + datson.toString());
+                }
+
+                // reader.result contains the contents of blob as a typed array
+                document.getElementById('status').innerHTML = '[data SOCKET]:' + datson;
+                if (sw) {
+                    globals.set_websock_response(datsontmp.slice(), datsontmp.length);
+                }
+
+                var vecttmp = {
+                    data1: {
+                        val: 0,
+                        type: "uint8",
+                    },
+                    data2: {
+                        val: 0,
+                        type: "uint16",
+                    },
+                    data3: {
+                        val: 0,
+                        type: "uint8",
+                    },
+                };
+
+                if (sw) {
+
+                    dataobj1.set_array(vecttmp, datsontmp);
+                    console.log("Vecarray3 ---: ", vecttmp);
+
+                    var testtmp = "d1: " + vecttmp.data1.val + " d2: " + vecttmp.data2.val + " d3: " + vecttmp.data3.val;
+                    globals.console_printf(testtmp);
+
+                    vecttmp.data1.val = 0x34;
+                    vecttmp.data2.val = 0x1F00;
+                    vecttmp.data3.val = 0x32;
+
+                    //send_qbin(vecttmp);
+                    /*
+                     var datobjarray1 = dataobj1.get_array(vecttmp);
+                     var dataarr = dataobj1.bin2strhex(datobjarray1);
+
+                     testtmp = "array: " + dataarr.toString();
+                     globals.console_printf(testtmp);
+
+                     var dataarrstr = "V16X qbin=";
+                     var stringdat = stringToUint(dataarrstr);
+
+                     var arrbuf = new ArrayBuffer(stringdat.length + datobjarray1.length);
+                     var dataconcat = new Uint8Array(arrbuf);
+                     dataconcat.set(stringdat, 0);
+                     dataconcat.set(datobjarray1, stringdat.length);
+
+                     //socket.binaryType = "arraybuffer";
+                     console.log(dataconcat.toString());
+
+                     var oMyBlob = new Blob([dataconcat], {type : 'application/octet-stream'}); // the blob
+                     socket.send(oMyBlob);
+                    */
+                    //send_qstr_timeout(dataarr);
+                    //send_raw_timeout(datobjarray1);
+                }
+            }
+
+            socket_module.process_msg = process_msg;
+
+            var reader = new FileReader();
+            reader.addEventListener("loadend", function() {
+                var datson = reader.result;
+                //process_msg(datson);
+            });
+
+            socket.addEventListener('message', function (event) {
+                console.log("[message recv SOCKET LISTENER 1]:", event.data, typeof event.data);
+                if (typeof event.data == 'object') {
+                    reader.readAsArrayBuffer(event.data);
+                }
+                if (typeof event.data == 'string') {
+                    var data = atob(event.data);
+                    console.log("[message recv SOCKET LISTENER 2]:", data);
+                    globals.console_printf("[SOC LISTENER 2 rcv]:" + data);
+                    //process_msg(stringToUint(data));
+                }
+            });
+
+            socket.onclose = function(event) {
+                if (event.wasClean) {
+                    console.log("[close socket] Connection closed cleanly, code=", event.code, "reason=", event.reason);
+                } else {
+                    // e.g. server process killed or network down
+                    // event.code is usually 1006 in this case
+                    if (event.code == 1006) {
+                        reconnect_sock();
+                    }
+                    var close_msg = '[close socket] Connection died ' + event.code;
+                    console.log(close_msg);
+                    if (sw) {
+                        globals.console_printf(close_msg);
+                    }
+                }
+            }
+
+            socket.onerror = function(error) {
+                var error_msg = "[error socket] " + error.message;
+                console.log(error_msg, error_msg.length);
+                if (sw) {
+                    globals.console_printf(error_msg);
+                }
+                socket.close();
+            }
+
+        }
+
+        function tim_send_deepservice_ping()
+        {
+            globals.send_deepservice_ping();
+            Module._set_element_fps_angle(1.6, 5.6);
+            var cnt = globals.get_counter();
+            if (cnt > 50) {
+                var element = document.getElementById('output');
+                element.innerHTML = "";
+            }
+
+            var impmod = ["test1_JSSTR.js", "test2_JSSTR.js"];
+            import_modules(impmod, impmod.length);
+        }
+
+        function oninit()
+        {
+            setTimeout(tim_eventsource, 5000);
+            setTimeout(tim_eventsocket, 5000);
+            //setInterval(tim_send_deepservice_ping, 5000);
+            console.log("ON INIT!");
+            import_modules("data.js");
+        }
+
+        var sds_cntfail = 0;
+        function onsend_sds_failed()
+        {
+            if (sw) {
+                globals.connect_to_deepservice(host, port);
+            }
+            console.log('SDS send failed', sds_cntfail++);
+        }
+
+        var globals_callbacks = {
+            oninit: oninit,
+            on_send_sds_failed: onsend_sds_failed,
+        }
+
+        var host1 = window.location;
+        console.log("host", host1);
+
+    </script>
+    {{{ SCRIPT }}}
+</body>
+</html>
