@@ -531,8 +531,8 @@ void UR_V16X_Posix::fire_process()
     SSL_shutdown(netsocket_info->ssl);
 #endif
 
+    shutdown(netsocket_info->connfd, SHUT_WR);
     close(netsocket_info->connfd);
-    //shutdown(netsocket_info->connfd, SHUT_RDWR);
 
     cli_count--;
     _delete_client_from_frontend(_endpoint, netsocket_info->clid, (unsigned int)cli_count);
@@ -1296,7 +1296,8 @@ void UR_V16X_Posix::client_error(int fd, int status, const char *msg, const char
     sprintf(buf, "%s", longmsgtmp);
     writen(fd, buf, strlen(buf));
 
-    close(fd);
+    shutdown(fd, SHUT_WR);
+
 /*
     netsocket_inf_t *client = _get_client(fd);
     if (client != NULL) {
@@ -1642,7 +1643,8 @@ void UR_V16X_Posix::handle_directory_request(int out_fd, int dir_fd, char *filen
     sprintf(bufdir, "%s", longmsg);
     writen(out_fd, bufdir, strlen(bufdir));
 
-    close(out_fd);
+    shutdown(out_fd, SHUT_WR);
+
 /*
     netsocket_inf_t *client = _get_client(out_fd);
     if (client != NULL) {
