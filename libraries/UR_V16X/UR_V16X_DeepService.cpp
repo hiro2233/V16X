@@ -146,7 +146,7 @@ bool UR_V16X_DeepService::has_key(const query_param_t *params, uint32_t offset, 
 
 uint32_t UR_V16X_DeepService::destroy_qparams(query_param_t *params, uint32_t cnt)
 {
-    uint32_t destroyedcnt;
+    uint32_t destroyedcnt = 0;
     for (uint32_t i = 0; i < cnt; i++) {
         if ((params[i].key != NULL) || (params[i].key != nullptr)) {
             delete[] params[i].key;
