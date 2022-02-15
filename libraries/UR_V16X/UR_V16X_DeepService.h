@@ -50,13 +50,16 @@ public:
     } cmd_lst_t;
 
     UR_V16X_DeepService();
-    virtual ~UR_V16X_DeepService(void) {};
+    UR_V16X_DeepService(const uint16_t maxparams);
+
+    virtual ~UR_V16X_DeepService(void);
 
     // Print query params keys and values.
     void print_query_params(const query_param_t *qparam, uint32_t cnt);
     // Parse query, extract and sets the keys and values into the params giving the delimiter and the setter tokens.
     // Return param's pairs count extracted."
     uint32_t parse_query(const char *query, char delimiter, char setter, query_param_t *params, uint32_t max_params);
+    void parse_query(const char *query, char delimiter, char setter);
     // Check if params has keys.
     bool has_key(const query_param_t *params, uint32_t offset, uint32_t cnt, const char *strkey, uint32_t &idx);
     // Ensure destroying keys and values pairs.
@@ -69,12 +72,17 @@ public:
 
 private:
 
-    test_s testdata;
-    static const cmd_lst_t cmd_lst[];
+    test_s _testdata;
+    static const cmd_lst_t _cmd_lst[];
+
+    query_param_t *_qparams;
+    const uint16_t _maxparams;
+    uint32_t _cntparamparsed;
+
     // Execute query params string type already parsed.
-    bool execute_qstr(const query_param_t *qparams, uint32_t cnt, char **retmsg);
+    bool _execute_qstr(const query_param_t *qparams, uint32_t cnt, char **retmsg);
     // Verify if command exist on the list.
-    bool cmd_avail(char *pcmd);
-    bool exe_cmd(const char *cmd, char **retmsg);
-    void strhex2byte(char *strhex, uint8_t *dest);
+    bool _cmd_avail(char *pcmd);
+    bool _exe_cmd(const char *cmd, char **retmsg);
+    void _strhex2byte(char *strhex, uint8_t *dest);
 };

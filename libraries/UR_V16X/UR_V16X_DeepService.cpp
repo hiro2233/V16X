@@ -4,15 +4,30 @@
 
 #define V16X_DIR_TMP v16xtmp
 
-const UR_V16X_DeepService::cmd_lst_t UR_V16X_DeepService::cmd_lst[] = {
+const UR_V16X_DeepService::cmd_lst_t UR_V16X_DeepService::_cmd_lst[] = {
     {"ls"},
     {"cat"},
     {"echo"},
     {NULL},
 };
 
-UR_V16X_DeepService::UR_V16X_DeepService()
+UR_V16X_DeepService::UR_V16X_DeepService() :
+    _maxparams(0)
 {
+}
+
+UR_V16X_DeepService::UR_V16X_DeepService(const uint16_t maxparams) :
+    _maxparams(maxparams)
+{
+    _qparams = new query_param_t[_maxparams];
+}
+
+UR_V16X_DeepService::~UR_V16X_DeepService(void)
+{
+    if ((_qparams != NULL) || (_qparams != nullptr)) {
+        destroy_qparams(_qparams, _maxparams);
+    }
+    delete[] _qparams;
 }
 
 void UR_V16X_DeepService::print_query_params(const query_param_t *qparam, uint32_t cnt)
@@ -98,6 +113,15 @@ uint32_t UR_V16X_DeepService::parse_query(const char *query, char delimiter, cha
     return idxcnt;
 }
 
+void UR_V16X_DeepService::parse_query(const char *query, char delimiter, char setter)
+{
+    if ((_qparams != NULL) || (_qparams != nullptr)) {
+        destroy_qparams(_qparams, _maxparams);
+    }
+
+    _cntparamparsed = parse_query(query, delimiter, setter, _qparams, _maxparams);
+}
+
 bool UR_V16X_DeepService::has_key(const query_param_t *params, uint32_t offset, uint32_t cnt, const char *strkey, uint32_t &idx)
 {
     bool ret = false;
@@ -122,11 +146,12 @@ bool UR_V16X_DeepService::has_key(const query_param_t *params, uint32_t offset, 
 
 uint32_t UR_V16X_DeepService::destroy_qparams(query_param_t *params, uint32_t cnt)
 {
-    uint32_t i;
-    for (i = 0; i < cnt; i++) {
+    uint32_t destroyedcnt;
+    for (uint32_t i = 0; i < cnt; i++) {
         if ((params[i].key != NULL) || (params[i].key != nullptr)) {
             delete[] params[i].key;
             params[i].key = NULL;
+            destroyedcnt++;
         }
         if ((params[i].val != NULL) || (params[i].val != nullptr)) {
             delete[] params[i].val;
@@ -134,10 +159,10 @@ uint32_t UR_V16X_DeepService::destroy_qparams(query_param_t *params, uint32_t cn
         }
     }
 
-    return i;
+    return destroyedcnt;
 }
 
-void UR_V16X_DeepService::strhex2byte(char *strhex, uint8_t *dest)
+void UR_V16X_DeepService::_strhex2byte(char *strhex, uint8_t *dest)
 {
     uint32_t len = strlen(strhex) / 2;
     uint8_t restmp = 0;
@@ -166,13 +191,13 @@ bool UR_V16X_DeepService::process_qparams(const query_param_t *qparams, uint32_t
 
         memcpy(valtmp, qparams[idx_param].val, vallen);
 
-        uint8_t *ptr = (uint8_t*)&testdata;
+        uint8_t *ptr = (uint8_t*)&_testdata;
 
         memset(ptr, 0, sizeof(test_s));
-        strhex2byte(valtmp, ptr);
+        _strhex2byte(valtmp, ptr);
         SHAL_SYSTEM::printf("%s QSTR websocket %s - d1: %lu  d2: %lu  d3: %lu\n",COLOR_PRINTF_WHITE(1), COLOR_PRINTF_RESET, \
-                            (long unsigned int)testdata.data1, (long unsigned int)testdata.data2, (long unsigned int)testdata.data3);
-        ret = execute_qstr(qparams, cnt, retmsg);
+                            (long unsigned int)_testdata.data1, (long unsigned int)_testdata.data2, (long unsigned int)_testdata.data3);
+        ret = _execute_qstr(qparams, cnt, retmsg);
     }
 
     // Process binary queries
@@ -180,9 +205,8 @@ bool UR_V16X_DeepService::process_qparams(const query_param_t *qparams, uint32_t
         SHAL_SYSTEM::printf("%s process SDS QBIN key:%s %s val: %s idx: %d\n", COLOR_PRINTF_BLUE(1), COLOR_PRINTF_RESET, \
                             qparams[idx_param].key, qparams[idx_param].val, idx_param);
 
-        //uint8_t *ptr = (uint8_t*)&testdata;
-        memset(&testdata, 0, sizeof(test_s));
-        memcpy(&testdata, &qparams[idx_param].val[0], sizeof(test_s));
+        memset(&_testdata, 0, sizeof(test_s));
+        memcpy(&_testdata, &qparams[idx_param].val[0], sizeof(test_s));
 
         uint16_t vallen = sizeof(test_s);
 
@@ -191,13 +215,13 @@ bool UR_V16X_DeepService::process_qparams(const query_param_t *qparams, uint32_t
         }
         SHAL_SYSTEM::printf("\n");
         SHAL_SYSTEM::printf("%s QBIN websocket %s - d1: %lu  d2: %lu  d3: %lu\n",COLOR_PRINTF_WHITE(1), COLOR_PRINTF_RESET, \
-                            (long unsigned int)testdata.data1, (long unsigned int)testdata.data2, (long unsigned int)testdata.data3);
+                            (long unsigned int)_testdata.data1, (long unsigned int)_testdata.data2, (long unsigned int)_testdata.data3);
     }
 
     return ret;
 }
 
-bool UR_V16X_DeepService::execute_qstr(const query_param_t *qparams, uint32_t cnt, char **retmsg)
+bool UR_V16X_DeepService::_execute_qstr(const query_param_t *qparams, uint32_t cnt, char **retmsg)
 {
     bool ret = false;
     uint32_t idx_cmd = 0;
@@ -233,7 +257,7 @@ bool UR_V16X_DeepService::execute_qstr(const query_param_t *qparams, uint32_t cn
 
         memcpy(valtmp, qparams[idx_cmd].val, vallen);
 
-        if (!cmd_avail(valtmp)) {
+        if (!_cmd_avail(valtmp)) {
             return false;
         }
 
@@ -243,7 +267,7 @@ bool UR_V16X_DeepService::execute_qstr(const query_param_t *qparams, uint32_t cn
         char cmdtmp[strlen(valtmp) + strlen(valargstmp)];
         sprintf(cmdtmp, "%s %s 2>&1", valtmp, valargstmp);
 
-        ret = exe_cmd(cmdtmp, retmsg);
+        ret = _exe_cmd(cmdtmp, retmsg);
 
 #if V16X_DEBUG >= 99
         uint64_t keylen = strlen(qparams[idx_cmd].key);
@@ -256,10 +280,10 @@ bool UR_V16X_DeepService::execute_qstr(const query_param_t *qparams, uint32_t cn
     return ret;
 }
 
-bool UR_V16X_DeepService::cmd_avail(char *pcmd)
+bool UR_V16X_DeepService::_cmd_avail(char *pcmd)
 {
     bool ret = false;
-    const cmd_lst_t *map = cmd_lst;
+    const cmd_lst_t *map = _cmd_lst;
 
     while(map->cmd) {
         if (strcmp(map->cmd, pcmd) == 0) {
@@ -272,7 +296,7 @@ bool UR_V16X_DeepService::cmd_avail(char *pcmd)
     return ret;
 }
 
-bool UR_V16X_DeepService::exe_cmd(const char *cmd, char **retmsg)
+bool UR_V16X_DeepService::_exe_cmd(const char *cmd, char **retmsg)
 {
 #ifndef __MINGW32__
     int retmkdir = mkdir(STRINGIZEDEF_VAL(V16X_DIR_TMP), 0775);
