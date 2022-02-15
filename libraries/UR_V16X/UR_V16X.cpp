@@ -98,7 +98,7 @@ void UR_V16X::print_endpoints_data()
         }
         for (uint16_t j = 0; j < V16X_MAX_CLIENTS; j++) {
             if (endpoints[i].clients[j]) {
-                SHAL_SYSTEM::printf("PRINT DATA Driver: #%d Endpoint #%d Client ID: %u Attached: %d Address: %s:%d\n", _num_drivers, i, endpoints[i].clients[j]->client_id, endpoints[i].clients[j]->attached, endpoints[i].clients[j]->address, endpoints[i].clients[j]->port);
+                SHAL_SYSTEM::printf("%sPRINT DATA Driver: #%d Endpoint #%d Client ID: %u Attached: %d Address: %s:%d %s\n", COLOR_PRINTF_WHITE(1), _num_drivers, i, endpoints[i].clients[j]->client_id, endpoints[i].clients[j]->attached, endpoints[i].clients[j]->address, endpoints[i].clients[j]->port, COLOR_PRINTF_RESET);
                 //fflush(stdout);
             }
         }
