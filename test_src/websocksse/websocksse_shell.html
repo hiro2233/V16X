@@ -678,10 +678,19 @@
                 var dataarrstr = "V16X qbin=";
                 var stringdat = stringToUint(dataarrstr);
 
-                var arrbuf = new ArrayBuffer(stringdat.length + datobjarray1.length);
+                var databstr = stringToUint("77777");
+                var dataarrstr1 = "&qstr=77777"; //+ btoa("77777");
+                var stringdat1 = stringToUint(dataarrstr1);
+
+                var dataarrstr2 = "&qstr=9999";
+                var stringdat2 = stringToUint(dataarrstr2);
+
+                var arrbuf = new ArrayBuffer(stringdat.length + datobjarray1.length + stringdat1.length + stringdat2.length);
                 var dataconcat = new Uint8Array(arrbuf);
                 dataconcat.set(stringdat, 0);
                 dataconcat.set(datobjarray1, stringdat.length);
+                dataconcat.set(stringdat1, stringdat.length + datobjarray1.length);
+                dataconcat.set(stringdat2, stringdat.length + datobjarray1.length + stringdat1.length);
 
                 var oMyBlob = new Blob([dataconcat], {type : 'application/octet-stream'}); // the blob
                 if (socket.readyState == 1) {
