@@ -167,7 +167,7 @@ namespace SHAL_SYSTEM {
     void delay_sec(uint16_t sec);
     void delay_ms(uint32_t ms);
     void printf(const char *errormsg, ...) FMT_PRINTF(1, 2);
-    const char *get_date();
+    const string get_date();
 
     uint64_t _micros64tv ();
     uint64_t get_core_hrdtime();

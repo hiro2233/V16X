@@ -446,9 +446,9 @@ void SHAL_SYSTEM::printf(const char *printmsg, ...)
 
 }
 
-const char *SHAL_SYSTEM::get_date()
+const string SHAL_SYSTEM::get_date()
 {
-    static char buf[512] = {0};
+    char buf[128] = {0};
     memset(buf, 0, sizeof(buf));
     time_t now = time(0);
     struct tm tm = *gmtime(&now);
