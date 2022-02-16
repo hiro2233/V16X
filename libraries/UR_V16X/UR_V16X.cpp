@@ -33,6 +33,15 @@ UR_V16X::UR_V16X() :
     _frontend = this;
 }
 
+UR_V16X::~UR_V16X()
+{
+    for (uint8_t i = 0; i < _num_drivers; i++) {
+        if (drivers[i] != NULL) {
+            delete drivers[i];
+        }
+    }
+}
+
 bool UR_V16X::_add_driver(UR_V16X_Driver *driver)
 {
     if (!driver) {

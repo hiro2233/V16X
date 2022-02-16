@@ -33,6 +33,7 @@ class UR_V16X {
 
 public:
     UR_V16X();
+    ~UR_V16X();
 
     /* Do not allow copies */
     UR_V16X(const UR_V16X &other) = delete;
@@ -103,7 +104,7 @@ private:
         bool attached;
         bool ttl_ok:1;
         int client_id;
-        const char *address;
+        char address[18];
         uint16_t port;
     } clients_t;
 
