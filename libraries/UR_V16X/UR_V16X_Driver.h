@@ -32,13 +32,14 @@ public:
     void driver_fire_process();
     virtual void shuttdown() = 0;
     void driver_shutdown();
+    const string inet_ntostr(uint32_t in_addr);
 
 protected:
     // reference to V16X frontend.
     UR_V16X &_frontend;
 
     // copy to V16X frontend.
-    void _copy_client_to_frontend(uint8_t endpoint, int client_id, bool attached, unsigned int client_cnt, const char *address, uint16_t port);
+    void _copy_client_to_frontend(uint8_t endpoint, int client_id, bool attached, unsigned int client_cnt, const char address[], uint16_t port);
 
     // delete client registered on endpoint.
     void _delete_client_from_frontend(uint8_t endpoint, int client_id, unsigned int client_cnt);
