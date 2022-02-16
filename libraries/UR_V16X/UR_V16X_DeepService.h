@@ -75,7 +75,7 @@ private:
     test_s _testdata;
     static const cmd_lst_t _cmd_lst[];
 
-    query_param_t *_qparams;
+    query_param_t *_qparams = NULL;
     const uint16_t _maxparams;
     uint32_t _cntparamparsed;
 

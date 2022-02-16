@@ -1,4 +1,5 @@
 #include "UR_V16X_DeepService.h"
+#include <UR_Crypton/UR_Crypton.h>
 
 #include <sys/stat.h>
 
@@ -26,8 +27,8 @@ UR_V16X_DeepService::~UR_V16X_DeepService(void)
 {
     if ((_qparams != NULL) || (_qparams != nullptr)) {
         destroy_qparams(_qparams, _maxparams);
+        delete[] _qparams;
     }
-    delete[] _qparams;
 }
 
 void UR_V16X_DeepService::print_query_params(const query_param_t *qparam, uint32_t cnt)
@@ -47,7 +48,7 @@ void UR_V16X_DeepService::print_query_params(const query_param_t *qparam, uint32
         if (qparam[i].key) {
             SHAL_SYSTEM::printf("%s idx:%s %d key: %s ", COLOR_PRINTF_BLUE(1), COLOR_PRINTF_RESET, i, qparam[i].key);
             if (qparam[i].val) {
-                SHAL_SYSTEM::printf("val: %s", qparam[i].val);
+                SHAL_SYSTEM::printf("val: %s ", qparam[i].val);
             }
             SHAL_SYSTEM::printf("\n");
         }
@@ -181,41 +182,60 @@ bool UR_V16X_DeepService::process_qparams(const query_param_t *qparams, uint32_t
 {
     bool ret = false;
     uint32_t idx_param = 0;
+    uint16_t idx_offset = 0;
 
     // Process string queries
-    if (has_key(qparams, 0, cnt, "qstr", idx_param)) {
-        SHAL_SYSTEM::printf("%sprocess SDS QSTR key:%s %s val: %s idx: %d\n", COLOR_PRINTF_BLUE(1), COLOR_PRINTF_RESET, \
-                            qparams[idx_param].key, qparams[idx_param].val, idx_param);
-        uint64_t vallen = strlen(qparams[idx_param].val);
-        char valtmp[vallen + 1] = {0};
+    for (uint16_t i = 0; i < cnt; i++) {
+        if (has_key(qparams, idx_offset, cnt, "qstr", idx_param)) {
+            SHAL_SYSTEM::printf("%sprocess SDS QSTR key:%s %s val: %s idx: %d\n", COLOR_PRINTF_BLUE(1), COLOR_PRINTF_RESET, \
+                                qparams[idx_param].key, qparams[idx_param].val, idx_param);
 
-        memcpy(valtmp, qparams[idx_param].val, vallen);
+            uint64_t vallen = strlen(qparams[idx_param].val);
+            char valtmp[vallen + 1] = {0};
 
-        uint8_t *ptr = (uint8_t*)&_testdata;
+            memcpy(valtmp, qparams[idx_param].val, vallen);
+            uint8_t *ptr = (uint8_t*)&_testdata;
 
-        memset(ptr, 0, sizeof(test_s));
-        _strhex2byte(valtmp, ptr);
-        SHAL_SYSTEM::printf("%s QSTR websocket %s - d1: %lu  d2: %lu  d3: %lu\n",COLOR_PRINTF_WHITE(1), COLOR_PRINTF_RESET, \
-                            (long unsigned int)_testdata.data1, (long unsigned int)_testdata.data2, (long unsigned int)_testdata.data3);
-        ret = _execute_qstr(qparams, cnt, retmsg);
+            memset(ptr, 0, sizeof(test_s));
+            _strhex2byte(valtmp, ptr);
+            SHAL_SYSTEM::printf("%s QSTR websocket %s - d1: %lu  d2: %lu  d3: %lu\n",COLOR_PRINTF_WHITE(1), COLOR_PRINTF_RESET, \
+                                (long unsigned int)_testdata.data1, (long unsigned int)_testdata.data2, (long unsigned int)_testdata.data3);
+            ret = _execute_qstr(qparams, cnt, retmsg);
+            idx_offset = idx_param + 1;
+        }
     }
 
+    idx_param = 0;
+    idx_offset = 0;
+
     // Process binary queries
-    if (has_key(qparams, 0, cnt, "qbin", idx_param)) {
-        SHAL_SYSTEM::printf("%s process SDS QBIN key:%s %s val: %s idx: %d\n", COLOR_PRINTF_BLUE(1), COLOR_PRINTF_RESET, \
-                            qparams[idx_param].key, qparams[idx_param].val, idx_param);
+    for (uint16_t i = 0; i < cnt; i++) {
+        if (has_key(qparams, idx_offset, cnt, "qbin", idx_param)) {
+            char decout[50] = {0};
+            UR_Crypton ur_crypton;
+            ur_crypton.init();
+            int cntdecout = ur_crypton.b64_dec(decout, qparams[idx_param].val, strlen(qparams[idx_param].val));
 
-        memset(&_testdata, 0, sizeof(test_s));
-        memcpy(&_testdata, &qparams[idx_param].val[0], sizeof(test_s));
+            SHAL_SYSTEM::printf("%s process SDS QBIN key:%s %s val: %s decval: %s idx: %d\n", COLOR_PRINTF_BLUE(1), COLOR_PRINTF_RESET, \
+                                qparams[idx_param].key, qparams[idx_param].val, decout, idx_param);
 
-        uint16_t vallen = sizeof(test_s);
+            memset(&_testdata, 0, sizeof(test_s));
+            if (cntdecout > 0) {
+                memcpy(&_testdata, &decout, sizeof(test_s));
+            } else {
+                memcpy(&_testdata, &qparams[idx_param].val[0], sizeof(test_s));
+            }
 
-        for (uint16_t i = 0; i < vallen; i++) {
-            SHAL_SYSTEM::printf("[0x%02x] ", (uint8_t)qparams[idx_param].val[i]);
+            uint16_t vallen = sizeof(test_s);
+
+            for (uint16_t j = 0; j < vallen; j++) {
+                SHAL_SYSTEM::printf("[0x%02x] ", (uint8_t)qparams[idx_param].val[j]);
+            }
+            SHAL_SYSTEM::printf("\n");
+            SHAL_SYSTEM::printf("%s QBIN websocket %s - d1: %lu  d2: %lu  d3: %lu\n",COLOR_PRINTF_WHITE(1), COLOR_PRINTF_RESET, \
+                                (long unsigned int)_testdata.data1, (long unsigned int)_testdata.data2, (long unsigned int)_testdata.data3);
+            idx_offset = idx_param + 1;
         }
-        SHAL_SYSTEM::printf("\n");
-        SHAL_SYSTEM::printf("%s QBIN websocket %s - d1: %lu  d2: %lu  d3: %lu\n",COLOR_PRINTF_WHITE(1), COLOR_PRINTF_RESET, \
-                            (long unsigned int)_testdata.data1, (long unsigned int)_testdata.data2, (long unsigned int)_testdata.data3);
     }
 
     return ret;
