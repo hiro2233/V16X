@@ -27,6 +27,15 @@ UR_Crypton::UR_Crypton() :
     _backend_count(0)
 {}
 
+UR_Crypton::~UR_Crypton()
+{
+    for (uint8_t i = 0; i < _backend_count; i++) {
+        if (_backends[i] != NULL) {
+            delete _backends[i];
+        }
+    }
+}
+
 void UR_Crypton::configure(ProcessMode process_mode)
 {
     _configure_backends(process_mode);

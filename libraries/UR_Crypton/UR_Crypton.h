@@ -36,6 +36,7 @@ public:
     };
 
     UR_Crypton();
+    ~UR_Crypton();
 
     /** Wrap only, make some people happy, this will be
       * removed in the future.
