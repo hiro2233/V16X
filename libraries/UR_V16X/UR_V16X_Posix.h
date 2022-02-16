@@ -171,7 +171,7 @@ public:
     void process_event_stream();
 
 private:
-    static UR_Crypton ur_crypton;
+    UR_Crypton ur_crypton;
 
     uint8_t _endpoint;
     int default_port = 9998;
