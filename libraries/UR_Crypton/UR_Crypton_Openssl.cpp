@@ -48,7 +48,9 @@ UR_Crypton_Backend *UR_Crypton_Openssl::configure(UR_Crypton &ur_crypton)
 
 bool UR_Crypton_Openssl::_configure()
 {
+#if V16X_DEBUG >= 1
     SHAL_SYSTEM::printf("Configure UR Crypton Openssl\n");
+#endif // V16X_DEBUG
     return true;
 }
 
