@@ -184,6 +184,6 @@ namespace SHAL_SYSTEM {
 
     extern volatile bool _isr_timer_running;
     extern system_argcv_t system_argcv;
-}; // namespace SHAL_SYSTEM
+} // namespace SHAL_SYSTEM
 
 extern volatile sig_atomic_t sig_evt;
