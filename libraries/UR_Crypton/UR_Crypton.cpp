@@ -24,7 +24,8 @@
 #include "UR_Crypton_Openssl.h"
 
 UR_Crypton::UR_Crypton() :
-    _backend_count(0)
+    _backend_count(0),
+    _backends_configuring(false)
 {}
 
 UR_Crypton::~UR_Crypton()

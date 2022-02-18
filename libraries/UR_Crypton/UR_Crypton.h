@@ -69,7 +69,7 @@ private:
 
     UR_Crypton_Backend *_backends[UR_CRYPTON_MAX_BACKENDS] = {NULL};
     uint8_t _backend_count;
-    bool _backends_configuring:1;
+    bool _backends_configuring;
 
     // load backend drivers
     bool _add_backend(UR_Crypton_Backend *backend);
