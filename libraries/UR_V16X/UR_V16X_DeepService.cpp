@@ -13,12 +13,14 @@ const UR_V16X_DeepService::cmd_lst_t UR_V16X_DeepService::_cmd_lst[] = {
 };
 
 UR_V16X_DeepService::UR_V16X_DeepService() :
-    _maxparams(0)
+    _maxparams(0),
+    _cntparamparsed(0)
 {
 }
 
 UR_V16X_DeepService::UR_V16X_DeepService(const uint16_t maxparams) :
-    _maxparams(maxparams)
+    _maxparams(maxparams),
+    _cntparamparsed(0)
 {
     _qparams = new query_param_t[_maxparams];
 }
@@ -33,14 +35,23 @@ UR_V16X_DeepService::~UR_V16X_DeepService(void)
 
 void UR_V16X_DeepService::print_query_params(const query_param_t *qparam, uint32_t cnt)
 {
+    if (cnt == 0) {
+        return;
+    }
     uint32_t idx_param = 0;
     if (has_key(qparam, 0, cnt, "qstr", idx_param)) {
-        SHAL_SYSTEM::printf("%sSDS QSTR key:%s [%s] val: [%s] idx: [%d]\n", COLOR_PRINTF_BLUE(1), COLOR_PRINTF_RESET, \
+        SHAL_SYSTEM::printf("%sPRINT SDS QSTR key:%s [%s] val: [%s] idx: [%d]\n", COLOR_PRINTF_BLUE(1), COLOR_PRINTF_RESET, \
                             qparam[idx_param].key, qparam[idx_param].val, idx_param);
     }
     if (has_key(qparam, 0, cnt, "qbin", idx_param)) {
-        SHAL_SYSTEM::printf("%sSDS QBIN key:%s [%s] val: [%s] idx: [%d]\n", COLOR_PRINTF_BLUE(1), COLOR_PRINTF_RESET, \
-                            qparam[idx_param].key, qparam[idx_param].val, idx_param);
+        const uint16_t qblen = strlen(qparam[idx_param].val);
+        if (qblen > 0) {
+            char qbtmp[qblen] = {0};
+            sprintf(qbtmp, "%s", qparam[idx_param].val);
+
+            SHAL_SYSTEM::printf("%sPRINT SDS QBIN key:%s [%s] val: [%s] idx: [%d] len:%d\n", COLOR_PRINTF_BLUE(1), COLOR_PRINTF_RESET, \
+                                qparam[idx_param].key, qbtmp, idx_param, qblen);
+        }
     }
 
     SHAL_SYSTEM::printf("%s----------------------------------%s\n", COLOR_PRINTF_BLUE(1), COLOR_PRINTF_RESET);
@@ -147,6 +158,10 @@ bool UR_V16X_DeepService::has_key(const query_param_t *params, uint32_t offset, 
 
 uint32_t UR_V16X_DeepService::destroy_qparams(query_param_t *params, uint32_t cnt)
 {
+    if (cnt == 0) {
+        return 0;
+    }
+
     uint32_t destroyedcnt = 0;
     for (uint32_t i = 0; i < cnt; i++) {
         if ((params[i].key != NULL) || (params[i].key != nullptr)) {
@@ -180,6 +195,10 @@ void UR_V16X_DeepService::_strhex2byte(char *strhex, uint8_t *dest)
 
 bool UR_V16X_DeepService::process_qparams(const query_param_t *qparams, uint32_t cnt, char **retmsg)
 {
+    if (cnt == 0) {
+        return false;
+    }
+
     bool ret = false;
     uint32_t idx_param = 0;
     uint16_t idx_offset = 0;
@@ -187,7 +206,7 @@ bool UR_V16X_DeepService::process_qparams(const query_param_t *qparams, uint32_t
     // Process string queries
     for (uint16_t i = 0; i < cnt; i++) {
         if (has_key(qparams, idx_offset, cnt, "qstr", idx_param)) {
-            SHAL_SYSTEM::printf("%sprocess SDS QSTR key:%s %s val: %s idx: %d\n", COLOR_PRINTF_BLUE(1), COLOR_PRINTF_RESET, \
+            SHAL_SYSTEM::printf("%s\nprocess SDS QSTR key:%s %s val: %s idx: %d\n", COLOR_PRINTF_BLUE(1), COLOR_PRINTF_RESET, \
                                 qparams[idx_param].key, qparams[idx_param].val, idx_param);
 
             uint64_t vallen = strlen(qparams[idx_param].val);
@@ -198,7 +217,7 @@ bool UR_V16X_DeepService::process_qparams(const query_param_t *qparams, uint32_t
 
             memset(ptr, 0, sizeof(test_s));
             _strhex2byte(valtmp, ptr);
-            SHAL_SYSTEM::printf("%s QSTR websocket %s - d1: %lu  d2: %lu  d3: %lu\n",COLOR_PRINTF_WHITE(1), COLOR_PRINTF_RESET, \
+            SHAL_SYSTEM::printf("%s\nQSTR data %s - d1: %lu  d2: %lu  d3: %lu\n", COLOR_PRINTF_WHITE(1), COLOR_PRINTF_RESET, \
                                 (long unsigned int)_testdata.data1, (long unsigned int)_testdata.data2, (long unsigned int)_testdata.data3);
             ret = _execute_qstr(qparams, cnt, retmsg);
             idx_offset = idx_param + 1;
@@ -211,13 +230,18 @@ bool UR_V16X_DeepService::process_qparams(const query_param_t *qparams, uint32_t
     // Process binary queries
     for (uint16_t i = 0; i < cnt; i++) {
         if (has_key(qparams, idx_offset, cnt, "qbin", idx_param)) {
-            char decout[50] = {0};
-            UR_Crypton ur_crypton;
-            ur_crypton.init();
-            int cntdecout = ur_crypton.b64_dec(decout, qparams[idx_param].val, strlen(qparams[idx_param].val));
+            char decout[2048] = {0};
+            int cntdecout = 0;
+            const uint16_t qblen = strlen(qparams[idx_param].val);
+            char qbtmp[qblen] = {0};
+            sprintf(qbtmp, "%s", qparams[idx_param].val);
 
-            SHAL_SYSTEM::printf("%s process SDS QBIN key:%s %s val: %s decval: %s idx: %d\n", COLOR_PRINTF_BLUE(1), COLOR_PRINTF_RESET, \
-                                qparams[idx_param].key, qparams[idx_param].val, decout, idx_param);
+            UR_Crypton urcrypton;
+            urcrypton.init();
+            cntdecout = urcrypton.b64_dec(decout, qparams[idx_param].val, strlen(qparams[idx_param].val));
+
+            SHAL_SYSTEM::printf("%s\nPROCESS SDS QBIN key:%s %s val: %s decval: %s idx: %d\n", COLOR_PRINTF_BLUE(1), COLOR_PRINTF_RESET, \
+                                qparams[idx_param].key, qbtmp, decout, idx_param);
 
             memset(&_testdata, 0, sizeof(test_s));
             if (cntdecout > 0) {
@@ -226,15 +250,29 @@ bool UR_V16X_DeepService::process_qparams(const query_param_t *qparams, uint32_t
                 memcpy(&_testdata, &qparams[idx_param].val[0], sizeof(test_s));
             }
 
+#if V16X_DEBUG >= 1
             uint16_t vallen = sizeof(test_s);
 
+            SHAL_SYSTEM::printf("\tQBIN Encoded:\n\t");
+            SHAL_SYSTEM::printf("%s", COLOR_PRINTF_PURPLE(1));
             for (uint16_t j = 0; j < vallen; j++) {
                 SHAL_SYSTEM::printf("[0x%02x] ", (uint8_t)qparams[idx_param].val[j]);
             }
+            SHAL_SYSTEM::printf("%s", COLOR_PRINTF_RESET);
+
+            SHAL_SYSTEM::printf("\n\n\tQBIN Decoded:\n\t");
+            SHAL_SYSTEM::printf("%s", COLOR_PRINTF_PURPLE(1));
+            for (uint16_t j = 0; j < vallen; j++) {
+                SHAL_SYSTEM::printf("[0x%02x] ", (uint8_t)decout[j]);
+            }
+            SHAL_SYSTEM::printf("%s", COLOR_PRINTF_RESET);
             SHAL_SYSTEM::printf("\n");
-            SHAL_SYSTEM::printf("%s QBIN websocket %s - d1: %lu  d2: %lu  d3: %lu\n",COLOR_PRINTF_WHITE(1), COLOR_PRINTF_RESET, \
+            SHAL_SYSTEM::printf("%s\nQBIN data %s - d1: %lu  d2: %lu  d3: %lu\n",COLOR_PRINTF_WHITE(1), COLOR_PRINTF_RESET, \
                                 (long unsigned int)_testdata.data1, (long unsigned int)_testdata.data2, (long unsigned int)_testdata.data3);
+#endif // V16X_DEBUG
+
             idx_offset = idx_param + 1;
+            ret = true;
         }
     }
 
@@ -359,259 +397,42 @@ bool UR_V16X_DeepService::_exe_cmd(const char *cmd, char **retmsg)
     return true;
 }
 
-uint32_t UR_V16X_DeepService::parse_query_bin(const char *query, uint32_t querylen, char delimiter, char setter, query_param_t *params, uint32_t max_params)
+uint32_t UR_V16X_DeepService::parse_query_bin(const char *query, uint32_t querylen, query_param_t *params)
 {
     if (querylen == 0) {
         return 0;
     }
 
-    uint32_t isel = 0;
-    uint32_t idxcnt = 0;
-    char querytmp[querylen + 2] = {0};
-    char *pch = NULL;
-    char delimset[4] = {0, 0, 0, 0};
-    char *save_ptr = NULL;
-    int32_t lentoken = 0;
-    char tokenfound = 0;
-    char *tokenextrap = NULL;
-    int32_t lentokenextra = 0;
-
-    sprintf(delimset, "%c%c", delimiter, setter);
-
     if (NULL == query || 0 == *query) {
-        return -1;
+        return 0;
     }
 
-    memset(&querytmp[0], 0, querylen + 2);
-    memmove(&querytmp[0], &query[0], querylen);
-    querytmp[querylen + 1] = 'X';
+    char tokstr[] = "qbin=";
+    const uint16_t toklen =  (uint16_t)strlen(tokstr);
+    const uint32_t qlenend = querylen - toklen;
+    const char *tokfound = strstr(query, tokstr);
 
-    if (setter == 0) {
-        pch = strtok_rdata(querytmp, &delimiter, &save_ptr, lentoken, tokenfound, &tokenextrap, lentokenextra);
-    } else {
-        pch = strtok_rdata(querytmp, delimset, &save_ptr, lentoken, tokenfound, &tokenextrap, lentokenextra);
-    }
+    if (tokfound != NULL) {
+        tokfound = tokfound + toklen;
+#if V16X_DEBUG >= 1
+        SHAL_SYSTEM::printf("\n%sPARSE QBIN pos:%s %ld - tokstr size: %ld tokstr len: %ld qlen %lu qlenend: %lu\n", COLOR_PRINTF_PURPLE(1), COLOR_PRINTF_RESET, \
+                            (tokfound - query), sizeof(tokstr), (long int)toklen, (long unsigned int)querylen, (long unsigned int)qlenend);
 
-    if (tokenfound == 0) {
-        char *endpstr = strrchr(pch, 'X');
-#if V16X_DEBUG >= 99
-        SHAL_SYSTEM::printf("\nendpstr: %p - %p endpstr: %s len: %ld\n", endpstr, pch, endpstr, (long int)(endpstr - pch));
-#endif // V16X_DEBUG
-        if ((endpstr - pch) > 0) {
-            pch[endpstr - pch - 1] = 0;
-            lentoken = lentoken - 2;
+        SHAL_SYSTEM::printf("%s----------------------------------\n", COLOR_PRINTF_PURPLE(1));
+        for (uint32_t i = 0; i < qlenend; i++) {
+            SHAL_SYSTEM::printf("[0x%02x] ", tokfound[i]);
         }
+        SHAL_SYSTEM::printf("\n----------------------------------%s", COLOR_PRINTF_RESET);
+#endif // V16X_DEBUG
+        params[0].key = new char[toklen + 1];
+        memset(&params[0].key[0], 0, toklen + 1);
+        memmove(&params[0].key[0], tokstr, toklen - 1);
+
+        params[0].val = new char[qlenend + 1];
+        memset(&params[0].val[0], 0, qlenend + 1);
+        memmove(&params[0].val[0], tokfound, qlenend);
+        return 1;
     }
 
-    if (tokenextrap != NULL) {
-        for (int32_t i = 0; i < lentokenextra; i++) {
-            tokenextrap[i] = 0;
-        }
-    }
-#if V16X_DEBUG >= 99
-    SHAL_SYSTEM::printf("--------[ found: %s lentoken: %d tokenfound: %c tokenextrap: %s ]--------\n", pch, lentoken, tokenfound, tokenextrap);
-#endif // V16X_DEBUG
-    if ((idxcnt < max_params) && (pch != NULL) && (save_ptr != NULL)) {
-        params[idxcnt].key = new char[lentoken + 1];
-        memset(&params[idxcnt].key[0], 0, lentoken + 1);
-        memmove(&params[idxcnt].key[0], pch, lentoken);
-#if V16X_DEBUG >= 99
-        if (setter != 0) {
-            SHAL_SYSTEM::printf("%sPKey:%s %s \n", COLOR_PRINTF_BLUE(1), COLOR_PRINTF_RESET, pch);
-        }
-#endif // V16X_DEBUG
-        isel++;
-    }
-
-    while ((idxcnt < max_params) && (pch != NULL) && (save_ptr != NULL)) {
-        if (setter == 0) {
-            lentoken = 0;
-            tokenfound = 0;
-            tokenextrap = NULL;
-            pch = strtok_rdata(NULL, &delimiter, &save_ptr, lentoken, tokenfound, &tokenextrap, lentokenextra);
-
-            if (tokenfound == 0) {
-                char *endpstr = strrchr(pch, 'X');
-#if V16X_DEBUG >= 99
-                SHAL_SYSTEM::printf("\nendpstr: %p - %p endpstr: %s len: %ld\n", endpstr, pch, endpstr, (long int)(endpstr - pch));
-#endif // V16X_DEBUG
-                if ((endpstr - pch) > 0) {
-                    pch[endpstr - pch - 1] = 0;
-                    lentoken = lentoken - 2;
-                }
-            }
-
-            if (tokenextrap != NULL) {
-                for (int32_t i = 0; i < lentokenextra; i++) {
-                    tokenextrap[i] = 0;
-                }
-            }
-#if V16X_DEBUG >= 99
-            SHAL_SYSTEM::printf("--------[ found: %s lentoken: %d tokenfound: %c tokenextrap: %s ]--------\n", pch, lentoken, tokenfound, tokenextrap);
-#endif // V16X_DEBUG
-
-            params[idxcnt].key = new char[lentoken + 1];
-            memset(&params[idxcnt].key[0], 0, lentoken + 1);
-            memmove(&params[idxcnt].key[0], pch, lentoken);
-            params[idxcnt].val = NULL;
-            idxcnt++;
-            continue;
-        }
-
-        lentoken = 0;
-        tokenfound = 0;
-        tokenextrap = NULL;
-        pch = strtok_rdata(NULL, delimset, &save_ptr, lentoken, tokenfound, &tokenextrap, lentokenextra);
-
-        if (tokenfound == 0) {
-            char *endpstr = strrchr(pch, 'X');
-#if V16X_DEBUG >= 99
-            SHAL_SYSTEM::printf("\nendpstr: %p - %p endpstr: %s len: %ld\n", endpstr, pch, endpstr, (long int)(endpstr - pch));
-#endif // V16X_DEBUG
-            if ((endpstr - pch) > 0) {
-                pch[endpstr - pch - 1] = 0;
-                lentoken = lentoken - 2;
-            }
-        }
-
-        if (tokenextrap != NULL) {
-            for (int32_t i = 0; i < lentokenextra; i++) {
-                tokenextrap[i] = 0;
-            }
-        }
-#if V16X_DEBUG >= 99
-        SHAL_SYSTEM::printf("--------[ found: %s lentoken: %d tokenfound: %c tokenextrap: %s ]--------\n", pch, lentoken, tokenfound, tokenextrap);
-#endif // V16X_DEBUG
-        if (isel % 2) {
-            params[idxcnt].val = new char[lentoken + 1];
-            memset(&params[idxcnt].val[0], 0, lentoken + 1);
-            memmove(&params[idxcnt].val[0], pch, lentoken);
-#if V16X_DEBUG >= 99
-            if (setter != 0) {
-                SHAL_SYSTEM::printf("%sPVal:%s %s\n", COLOR_PRINTF_BLUE(1), COLOR_PRINTF_RESET, pch);
-            }
-#endif // V16X_DEBUG
-            idxcnt++;
-        } else {
-            params[idxcnt].key = new char[lentoken + 1];
-            memset(&params[idxcnt].key[0], 0, lentoken + 1);
-            memmove(&params[idxcnt].key[0], pch, lentoken);
-#if V16X_DEBUG >= 99
-            if (setter != 0) {
-                SHAL_SYSTEM::printf("%sPKey:%s %s \n", COLOR_PRINTF_BLUE(1), COLOR_PRINTF_RESET, pch);
-            }
-#endif // V16X_DEBUG
-        }
-        isel++;
-    }
-
-    return idxcnt;
-}
-
-char *UR_V16X_DeepService::strtok_rdata(char *str, const char *delim, char **save_ptr, int32_t &lentoken, char &tokenfound, char **tokenextrap, int32_t &lentokenextra)
-{
-    char *token;
-
-    if (str == NULL) {
-        str = *save_ptr;
-    }
-
-    // Scan delimiters and return the delimiter found position, if none,
-    // then find
-    long int strpos = (long int)strcspn(str, delim);
-#if V16X_DEBUG >= 99
-    SHAL_SYSTEM::printf("\nstrA: %s | saveptr: %s strpos: %ld \"%c\"\n", str, *save_ptr, (long int)strpos, str[strpos]);
-    fflush(stdout);
-#endif // V16X_DEBUG
-    uint32_t lendat = strlen(str);
-    token = str;
-
-    char *toktmp = NULL;
-
-    if (str[strpos] == 0) {
-        toktmp = str;
-#if V16X_DEBUG >= 99
-        SHAL_SYSTEM::printf("\n\nstr[strpos]A: [0x%02x] | pos: %ld\n", str[strpos - 1], strpos);
-#endif // V16X_DEBUG
-        token = &str[strpos];
-        *tokenextrap = &str[strpos];
-
-        while (*token == '\0') {
-            *token = '*';
-            token++;
-            lentokenextra++;
-#if V16X_DEBUG >= 99
-            if (token != NULL) {
-                SHAL_SYSTEM::printf("token: [0x%02x]\n", *token);
-            } else {
-                SHAL_SYSTEM::printf("token: %s\n", "NULL");
-            }
-#endif // V16X_DEBUG
-        }
-#if V16X_DEBUG >= 99
-        SHAL_SYSTEM::printf("token dat: [0x%02x]\n", *token);
-#endif // V16X_DEBUG
-        str = token;
-        strpos = (long int)strcspn(str, delim);
-#if V16X_DEBUG >= 99
-        SHAL_SYSTEM::printf("str[strpos]B: [0x%02x] *str:[%c] | toktmp: %s | pos: %ld\n", str[strpos], *str, toktmp, strpos);
-#endif // V16X_DEBUG
-        lendat = strlen(toktmp);
-
-        token = &str[strpos];
-#if V16X_DEBUG >= 99
-        SHAL_SYSTEM::printf("TOKEN: %s | STR: %s \n", token, str);
-#endif // V16X_DEBUG
-    }
-
-    tokenfound = str[strpos];
-#if V16X_DEBUG >= 99
-    SHAL_SYSTEM::printf("[*** tokenfound: [0x%02x] | lentoken: %d ***]\n", tokenfound, lentoken);
-#endif // V16X_DEBUG
-    if (*str == '\0') {
-#if V16X_DEBUG >= 99
-        SHAL_SYSTEM::printf("strB: %s\n", *save_ptr);
-        fflush(stdout);
-#endif // V16X_DEBUG
-        return NULL;
-    }
-
-    // Find the end of the token.
-    str = strpbrk(token, delim);
-#if V16X_DEBUG >= 99
-    SHAL_SYSTEM::printf("strC: %s\n", str);
-#endif // V16X_DEBUG
-
-    if (str == NULL) {
-        // This token finishes the string.
-        token = *save_ptr;
-        toktmp = *save_ptr;
-        token[lendat] = 0;
-        toktmp[lendat] = 0;
-#if V16X_DEBUG >= 99
-        SHAL_SYSTEM::printf("strD: %s - len %ld lendat: %ld\n", *save_ptr, (long int)strlen(*save_ptr), (long int)lendat);
-#endif // V16X_DEBUG
-        *save_ptr = str;
-    } else {
-        // Terminate the token and make *SAVE_PTR point past it.
-        *str = '\0';
-        *save_ptr = str + 1;
-#if V16X_DEBUG >= 99
-        SHAL_SYSTEM::printf("strE: %s\n", *save_ptr);
-#endif // V16X_DEBUG
-    }
-
-    if (toktmp != NULL) {
-#if V16X_DEBUG >= 99
-        SHAL_SYSTEM::printf("toktmp: %s\n", toktmp);
-#endif // V16X_DEBUG
-        token = toktmp;
-    }
-
-    lentoken = (strlen(token) - lentokenextra) + lentokenextra;
-#if V16X_DEBUG >= 99
-    SHAL_SYSTEM::printf("token: %s strpos: %ld lentoken: %d tokenextrap: %s\n", token, strpos, lentoken, *tokenextrap);
-    fflush(stdout);
-#endif // V16X_DEBUG
-    return token;
+    return 0;
 }

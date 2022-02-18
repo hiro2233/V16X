@@ -67,7 +67,7 @@ public:
     // Process query params already parsed.
     bool process_qparams(const query_param_t *qparams, uint32_t cnt, char **retmsg);
     // Parse V16X binary queries, input arguments should store or setted with serialized structured binary data.
-    uint32_t parse_query_bin(const char *query, uint32_t querylen, char delimiter, char setter, query_param_t *params, uint32_t max_params);
+    uint32_t parse_query_bin(const char *query, uint32_t querylen, query_param_t *params);
     char *strtok_rdata(char *str, const char *delim, char **save_ptr, int32_t &lentoken, char &tokenfound, char **tokenextrap, int32_t &lentokenextra);
 
 private:
