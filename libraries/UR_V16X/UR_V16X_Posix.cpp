@@ -111,7 +111,12 @@ const UR_V16X_Posix::mime_map_t UR_V16X_Posix::mime_types[] = {
 };
 
 UR_V16X_Posix::UR_V16X_Posix(UR_V16X &v16x) :
-    UR_V16X_Driver(v16x)
+    UR_V16X_Driver(v16x),
+    _endpoint(0),
+    listenfd(0),
+    cli_count(0),
+    clid(10),
+    last(0)
 {
     _endpoint = _frontend.register_endpoint();
     int port = _frontend.get_bindport();
@@ -1158,7 +1163,7 @@ uint8_t UR_V16X_Posix::parse_request(int fd, http_request_t *req)
         test_s tstwsocknativ;
         memset(&tstwsocknativ, 0, sizeof(test_s));
         memcpy(&tstwsocknativ, &wsdec[0], sizeof(test_s));
-        SHAL_SYSTEM::printf("%s V16X decoded websocket msg:%s %s d1: %d d2: %d d3: %d rawlen: %d lenret: %d leftlen: %d \n", COLOR_PRINTF_PURPLE(1), COLOR_PRINTF_RESET, \
+        SHAL_SYSTEM::printf("%s\nINPUT V16X decoded websocket msg:%s %s d1: %d d2: %d d3: %d rawlen: %d lenret: %d leftlen: %d \n", COLOR_PRINTF_PURPLE(1), COLOR_PRINTF_RESET, \
                             wsdec, tstwsocknativ.data1, tstwsocknativ.data2, tstwsocknativ.data3, dat_io.io_cnt, len, left);
     }
 
@@ -1170,9 +1175,9 @@ uint8_t UR_V16X_Posix::parse_request(int fd, http_request_t *req)
 
         memcpy(&query_str[0], &wsdec[5], len - 5);
 
-        ret_params = deepsrv.parse_query_bin(query_str, (uint32_t)(len - 5), '&', '=', split_querystr, 10);
+        ret_params = deepsrv.parse_query_bin(query_str, (uint32_t)(len - 5), split_querystr);
 
-        SHAL_SYSTEM::printf("\nSDS SOCKET Params GET count: %d query_str: %s\n", ret_params, query_str);
+        SHAL_SYSTEM::printf("\nSDS WEBSOCKET ret_params: %d query_str: %s\n", ret_params, query_str);
         deepsrv.print_query_params(split_querystr, ret_params);
         deepsrv.process_qparams(split_querystr, ret_params, ret_msg);
         deepsrv.destroy_qparams(split_querystr, ret_params);

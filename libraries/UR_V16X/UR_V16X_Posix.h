@@ -187,14 +187,14 @@ private:
 
     //std::atomic<uint32_t> cli_count;
     volatile uint32_t cli_count;
-    uint32_t clid = 10;
+    uint32_t clid;
 
     static const mime_map_t mime_types[];
     const char *default_mime_type = {"text/plain"};
 
     typedef struct sockaddr SA;
     data_parsed_t data_parsed;
-    uint32_t last = 0;
+    uint32_t last;
     test_s sock_testweb;
     test_s sock_testsse;
 
