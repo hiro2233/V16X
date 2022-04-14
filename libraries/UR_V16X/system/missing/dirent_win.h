@@ -30,8 +30,6 @@ extern "C" {
 #include <stdint.h>
 #include <errno.h>
 
-#include <windows.h>
-
 #include <shlwapi.h>
 
 #ifdef _MSC_VER
