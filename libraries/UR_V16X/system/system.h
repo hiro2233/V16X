@@ -33,10 +33,7 @@
 #include <signal.h>
 
 #if defined(__WIN32__)
-#include <winsock2.h>
-#include <ws2tcpip.h>
-#include <wininet.h>
-#include "signal_win.h"
+#include "missing/signal_win.h"
 #ifndef __GNUC__
 #include "time_win.h"
 #include "unistd_win.h"
