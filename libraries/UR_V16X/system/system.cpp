@@ -32,6 +32,9 @@
 #include <atomic>
 
 #if defined(__WIN32__)
+
+#include <windows.h>
+
 void usleep(long usec)
 {
 /*
