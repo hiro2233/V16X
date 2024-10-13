@@ -17,6 +17,8 @@
 
 #pragma once
 
+#ifndef HAL_BOARD_URUS
+
 #include <type_traits>
 
 #define FUNCTOR_TYPEDEF(name, rettype, ...) \
@@ -84,3 +86,5 @@ private:
         return (t->*method)(args...);
     }
 };
+
+#endif
