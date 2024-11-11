@@ -20,7 +20,7 @@
 				</Compiler>
 			</Target>
 			<Target title="unix_release">
-				<Option output="$(WORKSPACEDIR)/build/release/v16x" prefix_auto="1" extension_auto="1" />
+				<Option output="$(PROJECT_DIR)/build/release/v16x" prefix_auto="1" extension_auto="1" />
 				<Option working_dir="" />
 				<Option object_output="build/.obj/release/" />
 				<Option type="2" />
@@ -33,6 +33,7 @@
 					<Add option="-fsigned-char" />
 					<Add option="`wx-config  --version=2.8 --static=no --unicode=yes --debug=no --cflags`" />
 					<Add option="-D_UNIX_" />
+					<Add option="-DCRYPTON_TYPE=CRYPTON_NATIVE" />
 				</Compiler>
 				<Linker>
 					<Add option="-s" />
@@ -44,7 +45,7 @@
 				<Option working_dir="" />
 				<Option object_output="build/.obj/debug/" />
 				<Option type="2" />
-				<Option compiler="gcc" />
+				<Option compiler="mingw32-gcc" />
 				<Compiler>
 					<Add option="-g" />
 					<Add option="-D__WXMSW__" />
@@ -64,7 +65,7 @@
 				<Option working_dir="" />
 				<Option object_output="build/.obj/release/" />
 				<Option type="2" />
-				<Option compiler="gcc" />
+				<Option compiler="mingw32-gcc" />
 				<Compiler>
 					<Add option="-O2" />
 					<Add option="-fdata-sections" />
@@ -85,17 +86,45 @@
 					<Add directory="$(#wx.lib)" />
 				</Linker>
 			</Target>
+			<Target title="win64_release">
+				<Option output="build/release/v16x" prefix_auto="1" extension_auto="1" />
+				<Option working_dir="" />
+				<Option object_output="build/.obj/release/" />
+				<Option type="2" />
+				<Option compiler="mingw32_x86_64_gnu_gcc_compiler" />
+				<Compiler>
+					<Add option="-O2" />
+					<Add option="-fdata-sections" />
+					<Add option="-ffunction-sections" />
+					<Add option="-fno-exceptions" />
+					<Add option="-fsigned-char" />
+					<Add option="-D__WXMSW__" />
+					<Add option="-D_FILE_OFFSET_BITS=64" />
+					<Add option="-DwxDEBUG_LEVEL=0" />
+					<Add option="-DLOG4CPP_FIX_ERROR_COLLISION=1" />
+					<Add option="-DBOOST_ERROR_CODE_HEADER_ONLY" />
+					<Add option="-DCRYPTON_TYPE=CRYPTON_NATIVE" />
+					<Add option="-DHAVE_OCLOEXEC=0" />
+					<Add option="-D__MINGW32__" />
+					<Add directory="libraries/UR_V16X/system/missing" />
+				</Compiler>
+				<Linker>
+					<Add option="-s" />
+					<Add option="-Wl,--gc-sections" />
+				</Linker>
+			</Target>
 		</Build>
 		<Compiler>
+			<Add option="-Wshadow" />
 			<Add option="-Wall" />
-			<Add option="-std=c11" />
 			<Add option="-std=gnu++11" />
+			<Add option="-std=c11" />
 			<Add option="-fpermissive" />
 			<Add option="-Wno-unused-local-typedefs" />
-			<Add option="-Wshadow" />
 			<Add option="-D__STDC_FORMAT_MACROS" />
-			<Add option="-DENABLE_SYSTEM_SHUTDOWN" />
+			<Add option="-DSHAL_LIB" />
 			<Add directory="libraries" />
+			<Add directory="libraries/UR_V16X" />
 		</Compiler>
 		<Linker>
 			<Add option="-pthread" />
@@ -113,19 +142,68 @@
 		<Unit filename="app/v16x_server.h">
 			<Option target="&lt;{~None~}&gt;" />
 		</Unit>
+		<Unit filename="libraries/UR_Crypton/UR_Crypton.cpp" />
+		<Unit filename="libraries/UR_Crypton/UR_Crypton.h" />
+		<Unit filename="libraries/UR_Crypton/UR_Crypton_Backend.cpp" />
+		<Unit filename="libraries/UR_Crypton/UR_Crypton_Backend.h" />
+		<Unit filename="libraries/UR_Crypton/UR_Crypton_Native.cpp" />
+		<Unit filename="libraries/UR_Crypton/UR_Crypton_Native.h" />
+		<Unit filename="libraries/UR_Crypton/UR_Crypton_Openssl.cpp" />
+		<Unit filename="libraries/UR_Crypton/UR_Crypton_Openssl.h" />
 		<Unit filename="libraries/UR_V16X/UR_V16X.cpp" />
 		<Unit filename="libraries/UR_V16X/UR_V16X.h" />
 		<Unit filename="libraries/UR_V16X/UR_V16X_Driver.cpp" />
 		<Unit filename="libraries/UR_V16X/UR_V16X_Driver.h" />
 		<Unit filename="libraries/UR_V16X/UR_V16X_Posix.cpp" />
 		<Unit filename="libraries/UR_V16X/UR_V16X_Posix.h" />
+		<Unit filename="libraries/UR_V16X/system/missing/dirent_win.h">
+			<Option target="win32_debug" />
+			<Option target="win32_release" />
+			<Option target="win64_release" />
+		</Unit>
+		<Unit filename="libraries/UR_V16X/system/missing/fcntl.h">
+			<Option target="win32_debug" />
+			<Option target="win32_release" />
+			<Option target="win64_release" />
+		</Unit>
+		<Unit filename="libraries/UR_V16X/system/missing/inet_ntop.cpp">
+			<Option target="win32_debug" />
+			<Option target="win32_release" />
+			<Option target="win64_release" />
+		</Unit>
+		<Unit filename="libraries/UR_V16X/system/missing/inet_ntop.h">
+			<Option target="win32_debug" />
+			<Option target="win32_release" />
+			<Option target="win64_release" />
+		</Unit>
+		<Unit filename="libraries/UR_V16X/system/missing/netsocket_win.cpp">
+			<Option target="win32_debug" />
+			<Option target="win32_release" />
+			<Option target="win64_release" />
+		</Unit>
+		<Unit filename="libraries/UR_V16X/system/missing/netsocket_win.h">
+			<Option target="win32_debug" />
+			<Option target="win32_release" />
+			<Option target="win64_release" />
+		</Unit>
+		<Unit filename="libraries/UR_V16X/system/missing/signal_win.h">
+			<Option target="win32_debug" />
+			<Option target="win32_release" />
+			<Option target="win64_release" />
+		</Unit>
+		<Unit filename="libraries/UR_V16X/system/missing/time_win.h">
+			<Option target="win32_debug" />
+			<Option target="win32_release" />
+			<Option target="win64_release" />
+		</Unit>
+		<Unit filename="libraries/UR_V16X/system/missing/unistd_win.h">
+			<Option target="win32_debug" />
+			<Option target="win32_release" />
+			<Option target="win64_release" />
+		</Unit>
 		<Unit filename="libraries/UR_V16X/system/system.cpp" />
 		<Unit filename="libraries/UR_V16X/system/system.h" />
 		<Unit filename="libraries/UR_V16X/utility/functor.h" />
-		<Extensions>
-			<envvars />
-			<code_completion />
-			<debugger />
-		</Extensions>
+		<Extensions />
 	</Project>
 </UrusStudio_project_file>
