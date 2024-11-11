@@ -39,6 +39,7 @@ public:
     virtual int b64_dec(char * output, char * input, int inputLen) { return 0; }
 
     virtual void sha1_apply(const unsigned char* src, unsigned char* digest) {}
+    virtual void sha1_apply_file(const char* filepath, unsigned char* digest) {}
 
 protected:
     // access to frontend

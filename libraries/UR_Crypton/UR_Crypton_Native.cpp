@@ -35,7 +35,7 @@
 #define	BIG_ENDIAN	4321	/* most-significant byte first (IBM, net) */
 #define	PDP_ENDIAN	3412	/* LSB first in word, MSW first in long (pdp)*/
 
-#if defined(vax) || defined(ns32000) || defined(sun386) || defined(__i386__) || \
+#if defined(vax) || defined(ns32000) || defined(sun386) || defined(__i386__)  || defined(__x86_64__) || \
     defined(MIPSEL) || defined(_MIPSEL) || defined(BIT_ZERO_ON_RIGHT) || \
     defined(__alpha__) || defined(__alpha)
 #define BYTE_ORDER	LITTLE_ENDIAN
@@ -404,5 +404,21 @@ void UR_Crypton_Native::sha1_apply(const unsigned char* src, unsigned char* dige
     SHA_CTX shactx;
     _SHA1_Init(&shactx);
     _SHA1_Update(&shactx, src, strlen((const char*)src));
+    _SHA1_Final(digest, &shactx);
+}
+
+void UR_Crypton_Native::sha1_apply_file(const char* filepath, unsigned char* digest)
+{
+    FILE* file = fopen(filepath, "rb");
+    char buffer[1024];
+    size_t size;
+    SHA_CTX shactx;
+
+    _SHA1_Init(&shactx);
+    while (!feof(file)) {
+        // Hash file by 1kb chunks, instead of loading into RAM at once
+        size = fread(buffer, 1, 1024, file);
+        _SHA1_Update(&shactx, (const unsigned char*)buffer, size);
+    }
     _SHA1_Final(digest, &shactx);
 }

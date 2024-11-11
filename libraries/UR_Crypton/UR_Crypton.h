@@ -64,6 +64,7 @@ public:
     int b64_dec(char * output, char * input, int inputLen);
 
     void sha1_apply(const unsigned char* src, unsigned char* digest);
+    void sha1_apply_file(const char* filepath, unsigned char* digest);
 
 private:
 

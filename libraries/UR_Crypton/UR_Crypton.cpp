@@ -99,3 +99,8 @@ void UR_Crypton::sha1_apply(const unsigned char* src, unsigned char* digest)
 {
     _backends[0]->sha1_apply(src, digest);
 }
+
+void UR_Crypton::sha1_apply_file(const char* filepath, unsigned char* digest)
+{
+    _backends[0]->sha1_apply_file(filepath, digest);
+}
