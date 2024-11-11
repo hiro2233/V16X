@@ -50,6 +50,9 @@
 				</Compiler>
 				<Linker>
 					<Add option="-s" />
+					<Add option="-static-libstdc++" />
+					<Add option="-static-libgcc" />
+					<Add option="-static" />
 					<Add option="-Wl,--gc-sections" />
 					<Add option="-pthread" />
 					<Add library="ssl" />
@@ -186,6 +189,7 @@
 					<Add option="-static-libgcc" />
 					<Add option="-static" />
 					<Add option="-Wl,--gc-sections" />
+					<Add option="-pthread" />
 				</Linker>
 			</Target>
 			<Target title="android_release">
@@ -212,6 +216,45 @@
 					<Add option="-Wl,--gc-sections" />
 					<Add option="-Wl,-fPIE" />
 					<Add option="-Wl,-shared" />
+				</Linker>
+			</Target>
+			<Target title="win64_release">
+				<Option platforms="Windows;Unix;" />
+				<Option output="build/release/v16x.exe" prefix_auto="1" extension_auto="0" />
+				<Option working_dir="htdocs/" />
+				<Option object_output="build/.obj/release/" />
+				<Option type="1" />
+				<Option compiler="mingw32_x86_64_gnu_gcc_compiler" />
+				<Compiler>
+					<Add option="-flto" />
+					<Add option="-O2" />
+					<Add option="-std=c++11" />
+					<Add option="-fdata-sections" />
+					<Add option="-ffunction-sections" />
+					<Add option="-fno-exceptions" />
+					<Add option="-fsigned-char" />
+					<Add option="-fno-threadsafe-statics" />
+					<Add option="-Wno-unused-function" />
+					<Add option="-D__WXMSW__" />
+					<Add option="-D_FILE_OFFSET_BITS=64" />
+					<Add option="-DwxDEBUG_LEVEL=0" />
+					<Add option="-DLOG4CPP_FIX_ERROR_COLLISION=1" />
+					<Add option="-DBOOST_ERROR_CODE_HEADER_ONLY" />
+					<Add option="-DCRYPTON_TYPE=CRYPTON_NATIVE" />
+					<Add option="-DHAVE_OCLOEXEC=0" />
+					<Add option="-D__MINGW32__" />
+					<Add directory="libraries/UR_V16X/system/missing" />
+				</Compiler>
+				<Linker>
+					<Add option="-flto" />
+					<Add option="-s" />
+					<Add option="-static-libstdc++" />
+					<Add option="-static-libgcc" />
+					<Add option="-static" />
+					<Add option="-Wl,--gc-sections" />
+					<Add option="-pthread" />
+					<Add library="ws2_32" />
+					<Add library="shlwapi" />
 				</Linker>
 			</Target>
 		</Build>
@@ -248,6 +291,7 @@
 			<Option target="win32_release" />
 			<Option target="native_debug" />
 			<Option target="native_release" />
+			<Option target="win64_release" />
 		</Unit>
 		<Unit filename="libraries/UR_V16X/system/missing/fcntl.h" />
 		<Unit filename="libraries/UR_V16X/system/missing/inet_ntop.cpp">
@@ -255,6 +299,7 @@
 			<Option target="win32_release" />
 			<Option target="native_debug" />
 			<Option target="native_release" />
+			<Option target="win64_release" />
 		</Unit>
 		<Unit filename="libraries/UR_V16X/system/missing/inet_ntop.h" />
 		<Unit filename="libraries/UR_V16X/system/missing/netsocket_win.cpp">
@@ -262,30 +307,35 @@
 			<Option target="win32_release" />
 			<Option target="native_debug" />
 			<Option target="native_release" />
+			<Option target="win64_release" />
 		</Unit>
 		<Unit filename="libraries/UR_V16X/system/missing/netsocket_win.h">
 			<Option target="win32_debug" />
 			<Option target="win32_release" />
 			<Option target="native_debug" />
 			<Option target="native_release" />
+			<Option target="win64_release" />
 		</Unit>
 		<Unit filename="libraries/UR_V16X/system/missing/signal_win.h">
 			<Option target="win32_debug" />
 			<Option target="win32_release" />
 			<Option target="native_debug" />
 			<Option target="native_release" />
+			<Option target="win64_release" />
 		</Unit>
 		<Unit filename="libraries/UR_V16X/system/missing/time_win.h">
 			<Option target="win32_debug" />
 			<Option target="win32_release" />
 			<Option target="native_debug" />
 			<Option target="native_release" />
+			<Option target="win64_release" />
 		</Unit>
 		<Unit filename="libraries/UR_V16X/system/missing/unistd_win.h">
 			<Option target="win32_debug" />
 			<Option target="win32_release" />
 			<Option target="native_debug" />
 			<Option target="native_release" />
+			<Option target="win64_release" />
 		</Unit>
 		<Unit filename="libraries/UR_V16X/system/system.cpp" />
 		<Unit filename="libraries/UR_V16X/system/system.h" />

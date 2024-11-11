@@ -44,7 +44,7 @@ void UR_V16X_DeepService::print_query_params(const query_param_t *qparam, uint32
                             qparam[idx_param].key, qparam[idx_param].val, idx_param);
     }
     if (has_key(qparam, 0, cnt, "qbin", idx_param)) {
-        const uint16_t qblen = strlen(qparam[idx_param].val);
+        const uint16_t qblen = strlen(qparam[idx_param].val) + 1;
         if (qblen > 0) {
             char qbtmp[qblen] = {0};
             sprintf(qbtmp, "%s", qparam[idx_param].val);
@@ -232,7 +232,7 @@ bool UR_V16X_DeepService::process_qparams(const query_param_t *qparams, uint32_t
         if (has_key(qparams, idx_offset, cnt, "qbin", idx_param)) {
             char decout[2048] = {0};
             int cntdecout = 0;
-            const uint16_t qblen = strlen(qparams[idx_param].val);
+            const uint16_t qblen = strlen(qparams[idx_param].val) + 1;
             char qbtmp[qblen] = {0};
             sprintf(qbtmp, "%s", qparams[idx_param].val);
 
@@ -250,7 +250,7 @@ bool UR_V16X_DeepService::process_qparams(const query_param_t *qparams, uint32_t
                 memcpy(&_testdata, &qparams[idx_param].val[0], sizeof(test_s));
             }
 
-#if V16X_DEBUG >= 1
+//#if V16X_DEBUG >= 1
             uint16_t vallen = sizeof(test_s);
 
             SHAL_SYSTEM::printf("\tQBIN Encoded:\n\t");
@@ -269,7 +269,7 @@ bool UR_V16X_DeepService::process_qparams(const query_param_t *qparams, uint32_t
             SHAL_SYSTEM::printf("\n");
             SHAL_SYSTEM::printf("%s\nQBIN data %s - d1: %lu  d2: %lu  d3: %lu\n",COLOR_PRINTF_WHITE(1), COLOR_PRINTF_RESET, \
                                 (long unsigned int)_testdata.data1, (long unsigned int)_testdata.data2, (long unsigned int)_testdata.data3);
-#endif // V16X_DEBUG
+//#endif // V16X_DEBUG
 
             idx_offset = idx_param + 1;
             ret = true;
@@ -414,7 +414,7 @@ uint32_t UR_V16X_DeepService::parse_query_bin(const char *query, uint32_t queryl
 
     if (tokfound != NULL) {
         tokfound = tokfound + toklen;
-#if V16X_DEBUG >= 1
+//#if V16X_DEBUG >= 1
         SHAL_SYSTEM::printf("\n%sPARSE QBIN pos:%s %ld - tokstr size: %ld tokstr len: %ld qlen %lu qlenend: %lu\n", COLOR_PRINTF_PURPLE(1), COLOR_PRINTF_RESET, \
                             (tokfound - query), sizeof(tokstr), (long int)toklen, (long unsigned int)querylen, (long unsigned int)qlenend);
 
@@ -423,7 +423,7 @@ uint32_t UR_V16X_DeepService::parse_query_bin(const char *query, uint32_t queryl
             SHAL_SYSTEM::printf("[0x%02x] ", tokfound[i]);
         }
         SHAL_SYSTEM::printf("\n----------------------------------%s", COLOR_PRINTF_RESET);
-#endif // V16X_DEBUG
+//#endif // V16X_DEBUG
         params[0].key = new char[toklen + 1];
         memset(&params[0].key[0], 0, toklen + 1);
         memmove(&params[0].key[0], tokstr, toklen - 1);

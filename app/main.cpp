@@ -11,7 +11,7 @@ void configure()
 {
     SHAL_SYSTEM::init();
     v16x_server.configure();
-    SHAL_SYSTEM::run_thread_process(V16X_server::fire_process);
+    //SHAL_SYSTEM::run_thread_process(V16X_server::fire_process);
 }
 
 void loop()

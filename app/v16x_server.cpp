@@ -37,7 +37,9 @@ void V16X_server::fire_process(void)
     while(!sig_evt) {
         v16x.update();
         if (!sig_evt) {
-            SHAL_SYSTEM::run_thread_process(V16X_server::fire_proc_v16x);
+            //v16x.register_timer_process(FUNCTOR_BIND_MEMBER(&V16X_server::fire_proc_v16x, void));
+            //SHAL_SYSTEM::run_thread_process(V16X_server::fire_proc_v16x);
+            SHAL_SYSTEM::run_thread_process(FUNCTOR_BIND_MEMBER(&V16X_server::fire_proc_v16x, void));
             fflush(stdout);
         }
     }
@@ -89,6 +91,8 @@ void V16X_server::configure()
     v16x.set_bindport(bindport);
     v16x.init();
 
+    SHAL_SYSTEM::run_thread_process(FUNCTOR_BIND_MEMBER(&V16X_server::fire_process, void));
+
     SHAL_SYSTEM::printf("Server started\n");
     fflush(stdout);
 }
@@ -99,7 +103,7 @@ void V16X_server::loop()
     SHAL_SYSTEM::delay_sec(10);
 }
 
-void V16X_server::fire_proc_v16x()
+void V16X_server::fire_proc_v16x(void)
 {
     v16x.fire_process();
 }

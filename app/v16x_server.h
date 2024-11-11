@@ -34,12 +34,12 @@ public:
     void loop();
 
     // fire internal process from a class inside the run timer thread.
-    static void fire_process(void);
+    void fire_process(void);
 
     // shutdown all system
     void server_shutdown();
     void printhelp();
-    static void fire_proc_v16x();
+    void fire_proc_v16x(void);
 
 private:
 

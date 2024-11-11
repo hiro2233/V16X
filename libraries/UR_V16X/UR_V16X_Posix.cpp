@@ -597,7 +597,7 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *_clientaddr)
 
     int ret = parse_request(fd, &req);
 #if V16X_DEBUG >= 1
-    SHAL_SYSTEM::printf("\treq.filename: %s REQ CGI: %s queryP: NONE Addr:%s:%d\n", req.filename, filenametmp, inet_ntostr((uint32_t)_clientaddr->sin_addr), ntohs(_clientaddr->sin_port));
+    //SHAL_SYSTEM::printf("\treq.filename: %s REQ CGI: %s queryP: NONE Addr:%s:%d\n", req.filename, filenametmp, inet_ntostr((uint32_t)_clientaddr->sin_addr), ntohs(_clientaddr->sin_port));
 #endif // V16X_DEBUG
 
     if (ret || (strlen(req.filename) <= 0)) {
@@ -631,11 +631,11 @@ int UR_V16X_Posix::process(int fd, struct sockaddr_in *_clientaddr)
     memcpy(querytmp, query_string, strlen(query_string));
     if (!cgi_query) {
 #if V16X_DEBUG >= 2
-        SHAL_SYSTEM::printf("\treq.filename: %s REQ CGI: %s queryP: NONE Addr:%s:%d\n", req.filename, filenametmp, inet_ntostr((uint32_t)_clientaddr->sin_addr), ntohs(_clientaddr->sin_port));
+        //SHAL_SYSTEM::printf("\treq.filename: %s REQ CGI: %s queryP: NONE Addr:%s:%d\n", req.filename, filenametmp, inet_ntostr((uint32_t)_clientaddr->sin_addr), ntohs(_clientaddr->sin_port));
 #endif // V16X_DEBUG
     } else {
 #if V16X_DEBUG >= 2
-        SHAL_SYSTEM::printf("\treq.filename: %s req PARAM FILENAME: %s [queryP]: %s Addr:%s:%d\n", req.filename, filenametmp, querytmp, inet_ntostr((uint32_t)_clientaddr->sin_addr), ntohs(_clientaddr->sin_port));
+        //SHAL_SYSTEM::printf("\treq.filename: %s req PARAM FILENAME: %s [queryP]: %s Addr:%s:%d\n", req.filename, filenametmp, querytmp, inet_ntostr((uint32_t)_clientaddr->sin_addr), ntohs(_clientaddr->sin_port));
         //SHAL_SYSTEM::printf("\toffset: %d \n", (int)req.offset);
 #endif // V16X_DEBUG
 
@@ -1272,7 +1272,7 @@ void UR_V16X_Posix::log_access(int status, struct sockaddr_in *c_addr, http_requ
 #if V16X_DEBUG >= 3
     char filetmp[MAX_BUFF] = {0};
     memcpy(filetmp, req->filename, sizeof(req->filename));
-    SHAL_SYSTEM::printf("---[ LOGACCESS %s:%d Status:%d - %s ]---\n\n", inet_ntostr((uint32_t)c_addr->sin_addr), ntohs(c_addr->sin_port), status, filetmp);
+    //SHAL_SYSTEM::printf("---[ LOGACCESS %s:%d Status:%d - %s ]---\n\n", inet_ntostr((uint32_t)c_addr->sin_addr), ntohs(c_addr->sin_port), status, filetmp);
 #endif
 }
 
@@ -1337,7 +1337,7 @@ void UR_V16X_Posix::serve_static(int out_fd, int in_fd, struct sockaddr_in *c_ad
         const char *msg = "Offset file error";
         client_error(out_fd, status, "Error", msg);
 #if V16X_DEBUG >= 1
-        SHAL_SYSTEM::printf("\t[ Offset > end ] #1 fd:%d offset: %ld end: %lu diff: %ld - %s Addr:%s:%d clid:%d\n", in_fd, (long int)req->offset, (long unsigned int)req->end, (long int)req->end - (long int)req->offset, filetmp, inet_ntostr((uint32_t)c_addr->sin_addr), ntohs(c_addr->sin_port), (int)client->clid);
+        //SHAL_SYSTEM::printf("\t[ Offset > end ] #1 fd:%d offset: %ld end: %lu diff: %ld - %s Addr:%s:%d clid:%d\n", in_fd, (long int)req->offset, (long unsigned int)req->end, (long int)req->end - (long int)req->offset, filetmp, inet_ntostr((uint32_t)c_addr->sin_addr), ntohs(c_addr->sin_port), (int)client->clid);
 #endif
         return;
     }
@@ -1396,14 +1396,14 @@ void UR_V16X_Posix::serve_static(int out_fd, int in_fd, struct sockaddr_in *c_ad
 
     if (client->method_head) {
 #if V16X_DEBUG >= 1
-        SHAL_SYSTEM::printf("Head received! fd:%d offset: %ld offsettmp: %ld end: %ld diff: %ld - %s Addr:%s:%d clid:%d\n", in_fd, (long int)offset, (long int)offsettmp, (long int)end, (long int)(end - offset), filetmp, inet_ntostr((uint32_t)c_addr->sin_addr), ntohs(c_addr->sin_port), (int)client->clid);
+        //SHAL_SYSTEM::printf("Head received! fd:%d offset: %ld offsettmp: %ld end: %ld diff: %ld - %s Addr:%s:%d clid:%d\n", in_fd, (long int)offset, (long int)offsettmp, (long int)end, (long int)(end - offset), filetmp, inet_ntostr((uint32_t)c_addr->sin_addr), ntohs(c_addr->sin_port), (int)client->clid);
         fflush(stdout);
 #endif // V16X_DEBUG
         client->is_attached = false;
         return;
     }
 #if V16X_DEBUG >= 1
-    SHAL_SYSTEM::printf("\t[ SERVING STATIC INIT ] #1 fd:%d offset: %ld end: %lu diff: %ld - %s Addr:%s:%d clid:%d\n", in_fd, (long int)req->offset, (long unsigned int)req->end, (long int)(req->end - req->offset), filetmp, inet_ntostr((uint32_t)c_addr->sin_addr), ntohs(c_addr->sin_port), (int)client->clid);
+    //SHAL_SYSTEM::printf("\t[ SERVING STATIC INIT ] #1 fd:%d offset: %ld end: %lu diff: %ld - %s Addr:%s:%d clid:%d\n", in_fd, (long int)req->offset, (long unsigned int)req->end, (long int)(req->end - req->offset), filetmp, inet_ntostr((uint32_t)c_addr->sin_addr), ntohs(c_addr->sin_port), (int)client->clid);
     fflush(stdout);
 #endif // V16X_DEBUG
 
@@ -1435,7 +1435,7 @@ void UR_V16X_Posix::serve_static(int out_fd, int in_fd, struct sockaddr_in *c_ad
 */
 
 #if V16X_DEBUG >= 1
-    SHAL_SYSTEM::printf("\tServing static #1 fd:%d offset: %ld offsettmp: %ld end: %ld diff: %ld - %s Addr:%s:%d clid:%d\n", in_fd, (long int)offset, (long int)offsettmp, (long int)end, (long int)(end - offset), filetmp, inet_ntostr((uint32_t)c_addr->sin_addr), ntohs(c_addr->sin_port), (int)client->clid);
+    //SHAL_SYSTEM::printf("\tServing static #1 fd:%d offset: %ld offsettmp: %ld end: %ld diff: %ld - %s Addr:%s:%d clid:%d\n", in_fd, (long int)offset, (long int)offsettmp, (long int)end, (long int)(end - offset), filetmp, inet_ntostr((uint32_t)c_addr->sin_addr), ntohs(c_addr->sin_port), (int)client->clid);
 #endif // V16X_DEBUG
 
 #ifdef __unix__
@@ -1478,7 +1478,7 @@ void UR_V16X_Posix::serve_static(int out_fd, int in_fd, struct sockaddr_in *c_ad
         if(sendfile(out_fd, in_fd, &offtmp, (size_t)total_size) < 0) {
             offsettmp = offtmp;
 #if V16X_DEBUG >= 1
-            SHAL_SYSTEM::printf("\tServing static SENDIFLE #2 fd:%d offsettmp: %lld offset: %lld end: %lld diff: %lld - %s Addr:%s:%d clid: %d\n", in_fd, (long long int)offsettmp, (long long int)offset, (long long int)end, (long long int)(end - offsettmp), filetmp, inet_ntostr((uint32_t)c_addr->sin_addr), ntohs(c_addr->sin_port), (int)client->clid);
+            //SHAL_SYSTEM::printf("\tServing static SENDIFLE #2 fd:%d offsettmp: %lld offset: %lld end: %lld diff: %lld - %s Addr:%s:%d clid: %d\n", in_fd, (long long int)offsettmp, (long long int)offset, (long long int)end, (long long int)(end - offsettmp), filetmp, inet_ntostr((uint32_t)c_addr->sin_addr), ntohs(c_addr->sin_port), (int)client->clid);
             fflush(stdout);
 #endif // V16X_DEBUG
             break;
@@ -1774,6 +1774,7 @@ ssize_t UR_V16X_Posix::writen(int fd, const void *usrbuf, size_t n)
     while (nleft > 0) {
         uint32_t lapcnt = 0;
         if ((nwritten = sendto(fd, bufp, nleft, 0, &addr, clientlen)) <= 0) {
+            SHAL_SYSTEM::printf("\n********* ERROR - %d: %s\n", errno, strerror(errno));
         //if ((nwritten = write(fd, bufp, nleft)) <= 0) {
 #if V16X_DEBUG >= 1
             SHAL_SYSTEM::printf("\n\n\tfunct %s INTERRUPT CALL 1: %d !!!\n\n", __func__, errno);
@@ -1862,9 +1863,9 @@ void UR_V16X_Posix::process_event_stream()
 
     int mtx = 0;
     if ((mtx = pthread_mutex_trylock(&process_mutex)) != 0) {
-#if V16X_DEBUG >= 2
-        SHAL_SYSTEM::printf("%s - %s Mutex locked mtx: %d\n", SHAL_SYSTEM::get_date().c_str(), __func__, mtx);
-#endif // V16X_DEBUG
+//#if V16X_DEBUG >= 2
+        SHAL_SYSTEM::printf("----- %s - %s Mutex locked mtx: %d -----\n", SHAL_SYSTEM::get_date().c_str(), __func__, mtx);
+//#endif // V16X_DEBUG
         return;
     }
 
@@ -1907,7 +1908,7 @@ void UR_V16X_Posix::process_event_stream()
                     continue;
                 }
 
-                sock_testweb.data1 = sock_testweb.data1 + 5;
+                sock_testweb.data1 = sock_testweb.data1 + 1;
                 sock_testweb.data2 = 7936;
                 sock_testweb.data3 = 22;
                 clients[i]->evtwebsock_ping = false;
@@ -1918,13 +1919,16 @@ void UR_V16X_Posix::process_event_stream()
                 //sprintf(buftmp, "{\"len\":%lu,\"clid\":\"%d\",\"fd\":%d}", (long unsigned int)sizeof(buftmp), (int)client.clid, client.connfd);
                 int lenenc = _encode_hybi(buftmp, sizeof(test_s), msg, MAX_BUFF, OPCODE_BINARY);
                 if (lenenc > 0) {
+                    SHAL_SYSTEM::printf("[SENDING bin data] d1: %d d2: %d d3: %d\n", sock_testweb.data1, sock_testweb.data2, sock_testweb.data3);
                     writen(client.connfd, msg, lenenc);
 
                     memset(msg, '\0', MAX_BUFF);
+                    memset(buftmp, '\0', MAX_BUFF);
                     sprintf(buftmp, "{\"len\":%lu,\"clid\":\"%d\",\"fd\":%d}", (long unsigned int)sizeof(buftmp), (int)client.clid, client.connfd);
                     lenenc = _encode_hybi(buftmp, strlen(buftmp), msg, MAX_BUFF, OPCODE_TEXT);
                     //SHAL_SYSTEM::delay_ms(100);
-                    writen(client.connfd, msg, lenenc);
+                    //SHAL_SYSTEM::printf("[SENDING TEXT data] %s \n", buftmp);
+                    //writen(client.connfd, msg, lenenc);
                 }
                 //clients[i]->sending = 0;
             }

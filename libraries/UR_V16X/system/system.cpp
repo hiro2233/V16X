@@ -91,7 +91,7 @@ namespace SHAL_SYSTEM {
     volatile bool _timer_suspended;
     volatile bool _timer_event_missed;
 
-    pthread_t run_proc_thread;
+    pthread_t *run_proc_thread = NULL;
     pthread_attr_t thread_attr_run_proc;
 
     pthread_t isr_timer_thread;
@@ -107,6 +107,9 @@ namespace SHAL_SYSTEM {
     string vstdout_buf[20];
     string strdatres[20];
     volatile uint16_t vstdout_buf_index = 0;
+
+    static Proc *thread_procs = NULL;
+    static MemberProc *thread_memberprocs = NULL;
 }
 
 volatile bool SHAL_SYSTEM::_isr_timer_running = false;
@@ -116,7 +119,7 @@ void SHAL_SYSTEM::system_shal_shutdown()
     pthread_mutex_unlock(&getvstdout_mutex);
     sig_evt = 1;
     _isr_timer_running = false;
-    pthread_join(run_proc_thread, NULL);
+    pthread_join(*run_proc_thread, NULL);
     pthread_join(isr_timer_thread, NULL);
     delay_sec(1);
     SHAL_SYSTEM::printf("Shutdown system OK\n");
@@ -288,7 +291,7 @@ void *SHAL_SYSTEM::_fire_isr_timer(void *arg)
     return NULL;
 }
 
-void SHAL_SYSTEM::register_timer_process(MemberProc proc)
+void SHAL_SYSTEM::register_timer_process(SHAL_SYSTEM::MemberProc proc)
 {
     for (uint8_t i = 0; i < _num_timer_procs; i++) {
         if (_timer_proc[i] == proc) {
@@ -343,28 +346,29 @@ void SHAL_SYSTEM::resume_timer_procs() {
 void *SHAL_SYSTEM::_fire_thread_void(void *args)
 {
 #if SHAL_DEBUG >= 1
-    printf("_fire_thread_void\n");
+    //printf("_fire_thread_void\n");
     fflush(stdout);
 #endif // SHAL_DEBUG
 
-    Proc proc = (Proc)args;
-    proc();
+    Proc *proc = (Proc*)args;
+    proc[0]();
 
     pthread_detach(pthread_self());
+    delete proc;
     return NULL;
 }
 
 void *SHAL_SYSTEM::_fire_thread_member(void *args)
 {
 #if SHAL_DEBUG >= 1
-    printf("_fire_thread_member\n");
+    //printf("_fire_thread_member\n");
     fflush(stdout);
 #endif // SHAL_DEBUG
 
-    MemberProc proc = *(MemberProc*)args;
-    proc();
+    MemberProc *proc = (MemberProc*)args;
+    proc[0]();
 #if SHAL_DEBUG >= 1
-    printf("member executed!\n");
+    //printf("member executed!\n");
     fflush(stdout);
 #endif // SHAL_DEBUG
 
@@ -372,14 +376,27 @@ void *SHAL_SYSTEM::_fire_thread_member(void *args)
     return NULL;
 }
 
-void SHAL_SYSTEM::run_thread_process(Proc proc)
+void SHAL_SYSTEM::run_thread_process(SHAL_SYSTEM::Proc proc)
 {
-    pthread_create(&run_proc_thread, &thread_attr_run_proc, _fire_thread_void, (void*)proc);
+    if (thread_procs) {
+        thread_procs++;
+    }
+
+    thread_procs = new Proc;
+    *thread_procs = proc;
+    run_proc_thread = new pthread_t;
+    pthread_create(run_proc_thread, &thread_attr_run_proc, _fire_thread_void, (void*)thread_procs);
 }
 
-void SHAL_SYSTEM::run_thread_process(MemberProc proc)
+void SHAL_SYSTEM::run_thread_process(SHAL_SYSTEM::MemberProc proc)
 {
-    pthread_create(&run_proc_thread, &thread_attr_run_proc, _fire_thread_member, (void*)&proc);
+    if (thread_memberprocs) {
+        thread_memberprocs++;
+    }
+    thread_memberprocs = new MemberProc;
+    *thread_memberprocs = proc;
+    run_proc_thread = new pthread_t;
+    pthread_create(run_proc_thread, &thread_attr_run_proc, _fire_thread_member, (void*)thread_memberprocs);
 }
 
 void SHAL_SYSTEM::delay_ms(uint32_t ms)

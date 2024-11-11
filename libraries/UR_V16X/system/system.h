@@ -139,7 +139,7 @@ typedef std::string string;
 
 #define MAX_TIMER_PROCS 10
 #define SERVER_VERSION "V16X/1.0.0"
-#define SHAL_DEBUG 0
+#define SHAL_DEBUG 3
 
 namespace SHAL_SYSTEM {
 
